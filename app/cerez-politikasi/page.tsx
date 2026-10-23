@@ -179,7 +179,7 @@ export default function CookiePolicyPage() {
   return (
     <LegalPage
       title="Çerez Politikası"
-      lastUpdated="11 Ekim 2026"
+      lastUpdated="19 Ekim 2026"
       intro={
         <p>
           Bu Çerez Politikası, {siteConfig.name} – {siteConfig.unit} tarafından işletilen {DOMAIN} internet sitesinde

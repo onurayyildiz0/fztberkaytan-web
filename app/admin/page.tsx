@@ -1,10 +1,13 @@
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   BookOpenCheck,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
+  CalendarPlus,
+  CalendarRange,
   ClipboardX,
   FileWarning,
   Hourglass,
@@ -22,7 +25,7 @@ import AppointmentList from "@/components/admin/AppointmentList";
 import { AdminPageHeader, KpiCard } from "@/components/admin/ui";
 import type { AppointmentStatus } from "@/lib/appointments";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { findAppointments } from "@/lib/data/appointments";
+import { findAdminAppointments } from "@/lib/data/appointments";
 import { addDays, formatDateLong, keyToDate, monthRange, todayKey } from "@/lib/dates";
 import { connectDB } from "@/lib/mongodb";
 import Appointment from "@/models/Appointment";
@@ -41,7 +44,9 @@ const MONTHS = [
 type QuickAction = { label: string; icon: LucideIcon; href?: string; primary?: boolean };
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: "Yeni Hasta", icon: UserPlus, href: "/admin/hastalar/yeni", primary: true },
+  { label: "Yeni Randevu", icon: CalendarPlus, href: "/admin/randevular/yeni", primary: true },
+  { label: "Yeni Hasta", icon: UserPlus, href: "/admin/hastalar/yeni" },
+  { label: "Takvim", icon: CalendarRange, href: "/admin/takvim" },
   { label: "Randevular", icon: CalendarDays, href: "/admin/randevular" },
   { label: "Çalışma Saatleri", icon: CalendarClock, href: "/admin/calisma-saatleri" },
   { label: "Randevusuz / Hızlı Seans", icon: Zap },
@@ -69,10 +74,11 @@ export default async function AdminOverviewPage({
   const range = monthRange(`${month}-01`);
   const monthDate = { $gte: keyToDate(range.start), $lt: keyToDate(range.end) };
 
-  const [todays, pending, pendingCount, monthTotal, monthCompleted, monthPatients, monthLost, monthNewPatients] =
+  const [overdue, todays, pending, pendingCount, monthTotal, monthCompleted, monthPatients, monthLost, monthNewPatients] =
     await Promise.all([
-      findAppointments({ from: today, to: addDays(today, 1) }),
-      findAppointments({ status: "pending", from: today, limit: 6 }),
+      findAdminAppointments({ status: "approved", to: addDays(today, 1) }),
+      findAdminAppointments({ from: today, to: addDays(today, 1) }),
+      findAdminAppointments({ status: "pending", from: today, limit: 6 }),
       Appointment.countDocuments({ status: "pending", date: { $gte: keyToDate(today) } }),
       Appointment.countDocuments({ date: monthDate, status: COUNTED }),
       Appointment.countDocuments({ date: monthDate, status: "completed" }),
@@ -81,6 +87,9 @@ export default async function AdminOverviewPage({
       Patient.countDocuments({ createdAt: { $gte: keyToDate(range.start), $lt: keyToDate(range.end) } }),
     ]);
 
+  // Saati geçtiği hâlde "Tamamlandı / Gelmedi" işaretlenmemiş onaylı randevular
+  const nowDate = new Date();
+  const unresolved = overdue.filter((a) => new Date(a.startsAt) < nowDate);
   const todaysActive = todays.filter((a) => a.status !== "rejected" && a.status !== "cancelled");
   const todaysPatients = new Set(todaysActive.map((a) => a.patient?.id ?? a.id)).size;
   const currentYear = Number(today.slice(0, 4));
@@ -98,7 +107,7 @@ export default async function AdminOverviewPage({
               {formatDateLong(today)}
             </span>
             <Link
-              href={`/admin/randevular?tarih=${today}`}
+              href={`/admin/takvim?tarih=${today}`}
               className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-teal-800 shadow-sm ring-1 ring-teal-200 transition hover:bg-teal-50"
             >
               <CalendarCheck className="size-4" aria-hidden="true" /> Bugünkü Takvim
@@ -106,6 +115,20 @@ export default async function AdminOverviewPage({
           </>
         }
       />
+
+      {unresolved.length > 0 && (
+        <Link
+          href="/admin/randevular?zaman=gecmis&durum=approved"
+          className="mb-6 flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
+        >
+          <AlertTriangle className="size-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <span>
+            <strong>{unresolved.length} geçmiş randevunun</strong> sonucu girilmedi. &quot;Tamamlandı&quot; veya &quot;Gelmedi&quot; olarak
+            işaretleyin.
+          </span>
+          <ArrowRight className="ml-auto size-4 shrink-0" aria-hidden="true" />
+        </Link>
+      )}
 
       {/* KPI kartları */}
       <section aria-label="Özet göstergeler" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">

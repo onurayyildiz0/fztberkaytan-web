@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Menu,
   Tags,
+  UserCog,
   Users,
   X,
   type LucideIcon,
@@ -30,6 +31,7 @@ const ICONS = {
   myAppointments: CalendarCheck,
   calendar: CalendarClock,
   home: Home,
+  account: UserCog,
 } satisfies Record<string, LucideIcon>;
 
 export type PanelNavItem = {

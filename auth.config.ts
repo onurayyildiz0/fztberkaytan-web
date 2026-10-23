@@ -22,11 +22,15 @@ export const authConfig = {
   },
   providers: [],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       // `user` yalnızca giriş anında doludur
       if (user) {
         if (user.id) token.id = user.id;
         if (isRole(user.role)) token.role = user.role;
+      }
+      // Hesap ayarlarında ad değişince istemci update({ name }) çağırır; yalnızca ad güncellenir (rol asla)
+      if (trigger === "update" && typeof session?.name === "string") {
+        token.name = session.name.trim().slice(0, 100);
       }
       return token;
     },

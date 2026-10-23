@@ -37,17 +37,17 @@ export const SERVICES = [
     name: "Fizyoterapi Danışmanlığı",
     description:
       "Ağrı, duruş ve hareket alışkanlıklarınıza yönelik bilgilendirme, ev egzersizi planlaması ve süreç takibi.",
-    durationMinutes: 60,
+    durationMinutes: 15,
     image: "/hizmetler/fizyoterapi-danismanligi.avif",
     imageAlt: "Fizyoterapist Berkay Tan klinikteki çalışma masasında danışmanlık hizmeti veriyor",
     price: null,
   },
   {
     slug: "klinik-pilates",
-    name: "Klinik Pilates Hizmetleri",
+    name: "Egzersiz Uygulamaları",
     description:
       "Kas kuvveti, esneklik ve vücut farkındalığını geliştirmeye yönelik, ihtiyaçlarınıza göre planlanan klinik pilates seansları.",
-    durationMinutes: 60,
+    durationMinutes: 50,
     image: "/hizmetler/klinik-pilates.avif",
     imageAlt: "Klinik pilates stüdyomuzdaki reformer ve cadillac cihazları",
     price: null,

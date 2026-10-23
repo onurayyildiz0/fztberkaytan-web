@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/guards";
+import { searchPatients } from "@/lib/data/patients";
 import { jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
 import { toFieldErrors } from "@/lib/validations/auth";
@@ -39,4 +40,21 @@ export async function POST(request: Request) {
     console.error("[admin:patients:create]", err);
     return jsonError("Hasta kaydedilirken bir hata oluştu.", 500);
   }
+}
+
+/** GET /api/admin/patients?q= → hasta arama (randevu formu için, en fazla 20 sonuç) */
+export async function GET(request: Request) {
+  const { error } = await requireAdminApi();
+  if (error) return error;
+  const q = new URL(request.url).searchParams.get("q") ?? "";
+  const patients = await searchPatients(q, 20);
+  return NextResponse.json({
+    patients: patients.map((p) => ({
+      id: p._id.toString(),
+      name: p.name,
+      phone: p.phone ?? null,
+      email: p.email ?? null,
+      hasAccount: !!p.userId,
+    })),
+  });
 }

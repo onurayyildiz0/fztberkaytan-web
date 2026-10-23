@@ -1,6 +1,7 @@
 import "server-only";
 import { STATUS_LABELS, type AppointmentStatus } from "@/lib/appointments";
 import { getAdminEmail } from "@/lib/auth/admin";
+import { googleCalendarTemplateUrl } from "@/lib/calendar-links";
 import { formatDateLong } from "@/lib/dates";
 import { sendEmail } from "@/lib/resend";
 import { siteConfig } from "@/lib/site";
@@ -155,10 +156,15 @@ export async function sendStatusUpdateEmail(
       `<p>Merhaba ${escapeHtml(patient.name)},</p>
        <p>${escapeHtml(content.message)}</p>
        ${detailsTable([...appointmentRows(appointment), ["Durum", STATUS_LABELS[status]]])}
-       ${button(`${baseUrl()}/hasta-paneli/randevularim`, "Randevularımı Görüntüle")}`,
+       ${button(`${baseUrl()}/hasta-paneli/randevularim`, "Randevularımı Görüntüle")}
+       ${status === "approved" ? calendarLink(appointment) : ""}`,
     ),
     text: `Merhaba ${patient.name},\n\n${content.message}\n\nHizmet: ${appointment.serviceName}\nTarih: ${formatDateLong(appointment.date)} ${appointment.timeSlot}\nDurum: ${STATUS_LABELS[status]}`,
   });
+}
+
+function calendarLink(appointment: EmailAppointment): string {
+  return `<p style="margin:16px 0 0;font-size:14px"><a href="${escapeHtml(googleCalendarTemplateUrl(appointment))}" style="color:#0f766e;font-weight:bold">+ Google Takvime Ekle</a></p>`;
 }
 
 /** Hasta randevusunu iptal ettiğinde admin'e bilgi */
@@ -212,5 +218,90 @@ export async function sendAccountExistsEmail(patient: EmailPatient, loginUrl: st
        <p style="margin-top:24px;font-size:13px;color:#64748b">Bu denemeyi siz yapmadıysanız herhangi bir işlem yapmanıza gerek yoktur.</p>`,
     ),
     text: `Merhaba ${patient.name},\n\nBu e-posta adresiyle yeni bir kayıt denemesi yapıldı. Hesabınız zaten mevcut; mevcut şifrenizle giriş yapabilirsiniz: ${loginUrl}`,
+  });
+}
+
+/** Fizyoterapistin oluşturduğu (onaylı) randevu için hastaya bilgi */
+export async function sendClinicAppointmentEmail(
+  appointment: EmailAppointment,
+  patient: OptionalEmailPatient,
+  hasAccount: boolean,
+) {
+  if (!patient.email) return;
+  await sendEmail({
+    to: patient.email,
+    subject: "Randevunuz oluşturuldu",
+    html: layout(
+      "Randevunuz oluşturuldu",
+      `<p>Merhaba ${escapeHtml(patient.name)},</p>
+       <p>Sizin için aşağıdaki randevu oluşturulmuştur. Belirtilen tarih ve saatte sizi bekliyoruz.</p>
+       ${detailsTable(appointmentRows(appointment))}
+       ${hasAccount ? button(`${baseUrl()}/hasta-paneli/randevularim`, "Randevularımı Görüntüle") : ""}
+       ${calendarLink(appointment)}
+       <p style="margin-top:24px;font-size:13px;color:#64748b">Değişiklik veya iptal için lütfen ${escapeHtml(siteConfig.phoneDisplay)} numarasından bize ulaşın.</p>`,
+    ),
+    text: `Merhaba ${patient.name},\n\nSizin için randevu oluşturuldu.\nHizmet: ${appointment.serviceName}\nTarih: ${formatDateLong(appointment.date)} ${appointment.timeSlot}\n\nDeğişiklik için: ${siteConfig.phoneDisplay}`,
+  });
+}
+
+/** Randevu tarih/saati değiştirildiğinde hastaya bilgi */
+export async function sendRescheduledEmail(
+  previous: { date: string; timeSlot: string },
+  appointment: EmailAppointment,
+  patient: OptionalEmailPatient,
+  hasAccount: boolean,
+) {
+  if (!patient.email) return;
+  await sendEmail({
+    to: patient.email,
+    subject: "Randevunuzun tarihi değişti",
+    html: layout(
+      "Randevunuz güncellendi",
+      `<p>Merhaba ${escapeHtml(patient.name)},</p>
+       <p>Randevunuzun tarihi ve/veya saati güncellenmiştir.</p>
+       ${detailsTable([
+         ["Eski tarih", `${formatDateLong(previous.date)} ${previous.timeSlot}`],
+         ...appointmentRows(appointment).map(([k, v]): [string, string] => [k === "Tarih" ? "Yeni tarih" : k === "Saat" ? "Yeni saat" : k, v]),
+       ])}
+       ${hasAccount ? button(`${baseUrl()}/hasta-paneli/randevularim`, "Randevularımı Görüntüle") : ""}
+       ${calendarLink(appointment)}`,
+    ),
+    text: `Merhaba ${patient.name},\n\nRandevunuz güncellendi.\nEski: ${formatDateLong(previous.date)} ${previous.timeSlot}\nYeni: ${formatDateLong(appointment.date)} ${appointment.timeSlot}\nHizmet: ${appointment.serviceName}`,
+  });
+}
+
+/** Randevudan bir gün önce hatırlatma */
+export async function sendReminderEmail(appointment: EmailAppointment, patient: EmailPatient, hasAccount: boolean) {
+  await sendEmail({
+    to: patient.email,
+    subject: `Randevu hatırlatması: Yarın ${appointment.timeSlot.split(" - ")[0]}`,
+    html: layout(
+      "Yarın randevunuz var",
+      `<p>Merhaba ${escapeHtml(patient.name)},</p>
+       <p>Yarınki randevunuzu hatırlatmak isteriz.</p>
+       ${detailsTable([...appointmentRows(appointment), ["Adres", siteConfig.address.full]])}
+       ${hasAccount ? button(`${baseUrl()}/hasta-paneli/randevularim`, "Randevularımı Görüntüle") : ""}
+       <p style="margin-top:24px;font-size:13px;color:#64748b">Gelemeyecekseniz lütfen en kısa sürede ${escapeHtml(siteConfig.phoneDisplay)} numarasından bize bilgi verin.</p>`,
+    ),
+    text: `Merhaba ${patient.name},\n\nYarınki randevunuzu hatırlatırız.\nHizmet: ${appointment.serviceName}\nTarih: ${formatDateLong(appointment.date)} ${appointment.timeSlot}\nAdres: ${siteConfig.address.full}\n\nGelemeyecekseniz lütfen arayın: ${siteConfig.phoneDisplay}`,
+  });
+}
+
+/** Şifre sıfırlama bağlantısı */
+export async function sendPasswordResetEmail(user: EmailPatient, link: string, ttlMinutes: number) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info(`[email] Şifre sıfırlama bağlantısı (${user.email}): ${link}`);
+  }
+  await sendEmail({
+    to: user.email,
+    subject: "Şifre sıfırlama",
+    html: layout(
+      "Şifrenizi sıfırlayın",
+      `<p>Merhaba ${escapeHtml(user.name)},</p>
+       <p>Hesabınız için şifre sıfırlama talebi aldık. Yeni şifre belirlemek için aşağıdaki butona tıklayın.</p>
+       ${button(link, "Yeni Şifre Belirle")}
+       <p style="margin-top:24px;font-size:13px;color:#64748b">Bu bağlantı ${ttlMinutes} dakika geçerlidir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız bu e-postayı dikkate almayın; şifreniz değişmez.</p>`,
+    ),
+    text: `Merhaba ${user.name},\n\nYeni şifre belirlemek için bağlantıyı açın:\n${link}\n\nBağlantı ${ttlMinutes} dakika geçerlidir. Bu talebi siz yapmadıysanız dikkate almayın.`,
   });
 }

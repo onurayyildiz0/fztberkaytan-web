@@ -6,7 +6,7 @@ import { Card } from "@/components/panel/ui";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { isAppointmentStatus, type AppointmentStatus } from "@/lib/appointments";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { findAppointments } from "@/lib/data/appointments";
+import { findAdminAppointments } from "@/lib/data/appointments";
 import { addDays, formatDateLong, isDateKey, todayKey } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Randevu Yönetimi" };
@@ -17,6 +17,7 @@ const STATUS_FILTERS: { value: AppointmentStatus | null; label: string }[] = [
   { value: "pending", label: "Bekleyen" },
   { value: "approved", label: "Onaylanan" },
   { value: "completed", label: "Tamamlanan" },
+  { value: "no_show", label: "Gelmedi" },
   { value: "cancelled", label: "İptal Edilen" },
   { value: "rejected", label: "Reddedilen" },
 ];
@@ -46,7 +47,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
   const range: Range = RANGE_FILTERS.some((r) => r.value === rangeParam) ? (rangeParam as Range) : "yaklasan";
 
   const today = todayKey();
-  const appointments = await findAppointments({
+  const appointments = await findAdminAppointments({
     status: status ?? undefined,
     ...(date
       ? { from: date, to: addDays(date, 1) }

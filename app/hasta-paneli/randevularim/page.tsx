@@ -5,6 +5,7 @@ import PatientAppointmentItem from "@/components/patient/PatientAppointmentItem"
 import { Card, CardHeader, EmptyState, PageHeader } from "@/components/panel/ui";
 import { requirePatientWithCardPage } from "@/lib/auth/guards";
 import { findAppointments } from "@/lib/data/appointments";
+import { PATIENT_CANCEL_MIN_HOURS } from "@/lib/appointments";
 import { todayKey } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Randevularım" };
@@ -24,7 +25,7 @@ export default async function MyAppointmentsPage() {
     <>
       <PageHeader
         title="Randevularım"
-        description="Beklemedeki randevularınızı iptal edebilirsiniz. Onaylanmış randevularda değişiklik için lütfen bizi arayın."
+        description={`Randevunuza ${PATIENT_CANCEL_MIN_HOURS} saatten fazla varsa buradan iptal edebilirsiniz. Daha yakın randevular ve tarih değişikliği için lütfen bizi arayın.`}
         actions={
           <Link
             href="/hasta-paneli/randevu-al"

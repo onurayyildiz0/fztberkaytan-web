@@ -54,9 +54,11 @@ const sections: LegalSection[] = [
         items={[
           "Online randevu talebi oluşturabilmek için web sitesi üzerinden hasta hesabı oluşturulması ve giriş yapılması gerekir. Hesap bilgilerinin ve parolanın gizliliğinden kullanıcı sorumludur.",
           "Web sitesi üzerinden uygun hizmet, tarih ve saat seçilerek randevu talebi oluşturulabilir.",
-          "Oluşturulan randevu talebi, fizyoterapist tarafından onaylandığında kesinleşir. Talebin onaylanması, reddedilmesi veya iptal edilmesi halinde kullanıcı e-posta ile bilgilendirilir; güncel durum hasta panelinden takip edilebilir.",
+          "Oluşturulan randevu talebi, fizyoterapist tarafından onaylandığında kesinleşir. Talebin onaylanması, reddedilmesi, tarihinin değiştirilmesi veya iptal edilmesi halinde kullanıcı e-posta ile bilgilendirilir; güncel durum hasta panelinden takip edilebilir. Onaylı randevulardan bir gün önce hatırlatma e-postası gönderilir.",
           "Kullanıcının randevu sırasında verdiği ad, soyad, telefon, e-posta ve gerekli diğer bilgilerin doğru ve güncel olması kendi sorumluluğundadır.",
-          "Henüz onaylanmamış randevu talepleri hasta panelinden iptal edilebilir. Onaylanmış randevunun değiştirilemeyeceği veya randevuya katılımın mümkün olmadığı durumlarda mümkün olduğunca erken iletişime geçilmesi rica edilir.",
+          "Bekleyen veya onaylanmış randevular, randevu saatine 24 saatten fazla süre varsa hasta panelinden iptal edilebilir. Daha yakın randevuların iptali, tarih değişikliği veya randevuya katılımın mümkün olmadığı durumlarda mümkün olduğunca erken telefonla iletişime geçilmesi rica edilir.",
+          "Fizyoterapist; zorunlu hallerde randevunun tarih veya saatini değiştirebilir ya da randevuyu iptal edebilir. Bu durumda kullanıcı bilgilendirilir.",
+          "Saati geçtiği hâlde onaylanmamış randevu talepleri sistem tarafından otomatik olarak düşürülür.",
           "Randevuların oluşturulması sırasında görüntülenen müsaitlik saatleri değişiklik gösterebilir.",
         ]}
       />
@@ -197,7 +199,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Kullanım Koşulları"
-      lastUpdated="11 Ekim 2026"
+      lastUpdated="19 Ekim 2026"
       intro={
         <>
           <p>

@@ -92,6 +92,11 @@ export const LIMITS = {
   /** Doğrulama e-postasını yeniden gönderme */
   resendPerIp: { limit: 5, windowSeconds: 60 * 60 },
   resendPerEmail: { limit: 3, windowSeconds: 60 * 60 },
+  /** Şifre sıfırlama talebi */
+  passwordResetPerIp: { limit: 5, windowSeconds: 60 * 60 },
+  passwordResetPerEmail: { limit: 3, windowSeconds: 60 * 60 },
+  /** Hesap ayarlarında şifre doğrulaması gerektiren işlemler */
+  accountActionsPerUser: { limit: 10, windowSeconds: 15 * 60 },
   /** Kullanıcı başına randevu talebi */
   appointmentsPerUser: { limit: 10, windowSeconds: 60 * 60 },
 } as const;

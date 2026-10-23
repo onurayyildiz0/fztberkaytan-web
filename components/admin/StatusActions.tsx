@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Check, CheckCheck, LoaderCircle, X, type LucideIcon } from "lucide-react";
+import { Ban, Check, CheckCheck, LoaderCircle, UserX, X, type LucideIcon } from "lucide-react";
 import { ADMIN_TRANSITIONS, type AppointmentStatus } from "@/lib/appointments";
 
 const ACTIONS: Partial<
@@ -16,6 +16,12 @@ const ACTIONS: Partial<
     confirm: "Reddetmeyi onayla",
   },
   completed: { label: "Tamamlandı", icon: CheckCheck, className: "bg-slate-800 text-white hover:bg-slate-900" },
+  no_show: {
+    label: "Gelmedi",
+    icon: UserX,
+    className: "border border-orange-200 text-orange-700 hover:bg-orange-50",
+    confirm: "Gelmedi olarak işaretle",
+  },
   cancelled: {
     label: "İptal Et",
     icon: Ban,

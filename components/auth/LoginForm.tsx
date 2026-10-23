@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import { LoaderCircle, LogIn, MailCheck } from "lucide-react";
@@ -145,6 +146,11 @@ export default function LoginForm() {
         disabled={loading}
         required
       />
+      <div className="-mt-2 text-right">
+        <Link href="/sifremi-unuttum" className="text-sm font-medium text-teal-700 hover:underline">
+          Şifremi unuttum
+        </Link>
+      </div>
 
       <button
         type="submit"

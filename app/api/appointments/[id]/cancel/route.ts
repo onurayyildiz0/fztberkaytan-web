@@ -1,15 +1,20 @@
 import { NextResponse, after } from "next/server";
-import { PATIENT_CANCELLABLE } from "@/lib/appointments";
+import { PATIENT_CANCEL_MIN_HOURS, PATIENT_CANCELLABLE, canPatientCancel } from "@/lib/appointments";
 import { requirePatientWithCardApi } from "@/lib/auth/guards";
-import { dateToKey } from "@/lib/dates";
+import { syncAppointmentToGoogle } from "@/lib/data/appointments";
+import { appointmentStartsAt, dateToKey } from "@/lib/dates";
 import { sendPatientCancelledEmail } from "@/lib/emails";
 import { isObjectId, jsonError } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
+import { siteConfig } from "@/lib/site";
 import Appointment from "@/models/Appointment";
 
 export const runtime = "nodejs";
 
-/** POST /api/appointments/:id/cancel → hasta kendi beklemedeki randevusunu iptal eder */
+/**
+ * POST /api/appointments/:id/cancel → hasta kendi randevusunu iptal eder.
+ * Kural: bekleyen veya onaylı randevu, başlangıcına 24 saatten fazla varsa iptal edilebilir.
+ */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { session, patient, error } = await requirePatientWithCardApi();
   if (error) return error;
@@ -21,29 +26,37 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     await connectDB();
     const patientId = patient._id;
 
-    // Sahiplik ve durum kontrolü tek atomik sorguda
-    const appointment = await Appointment.findOneAndUpdate(
-      { _id: id, patientId, status: { $in: [...PATIENT_CANCELLABLE] } },
-      { $set: { status: "cancelled" } },
-      { new: true },
-    ).lean();
+    // Sahiplik kontrolü: yalnızca hastanın kendi kartına bağlı randevu
+    const current = await Appointment.findOne({ _id: id, patientId }).lean();
+    if (!current) return jsonError("Randevu bulunamadı.", 404);
 
-    if (!appointment) {
-      const exists = await Appointment.exists({ _id: id, patientId });
-      return exists
-        ? jsonError("Yalnızca beklemedeki randevular iptal edilebilir.", 409)
-        : jsonError("Randevu bulunamadı.", 404);
-    }
-
-    const email = session.user.email ?? patient.email;
-    if (email) {
-      after(() =>
-        sendPatientCancelledEmail(
-          { serviceName: appointment.serviceName, date: dateToKey(appointment.date), timeSlot: appointment.timeSlot },
-          { name: patient.name, email },
-        ),
+    const date = dateToKey(current.date);
+    if (!canPatientCancel(current.status, appointmentStartsAt(date, current.timeSlot))) {
+      return jsonError(
+        PATIENT_CANCELLABLE.includes(current.status)
+          ? `Randevuya ${PATIENT_CANCEL_MIN_HOURS} saatten az kaldığı için online iptal yapılamıyor. Lütfen ${siteConfig.phoneDisplay} numarasından bize ulaşın.`
+          : "Bu randevu iptal edilemez.",
+        409,
       );
     }
+
+    // Durum okunduktan sonra değiştiyse işlem yapılmaz
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: id, patientId, status: current.status },
+      { $set: { status: "cancelled", cancelledBy: "patient" } },
+      { new: true },
+    ).lean();
+    if (!appointment) return jsonError("Randevu bu sırada güncellendi. Lütfen sayfayı yenileyin.", 409);
+
+    const email = session.user.email ?? patient.email;
+    after(async () => {
+      await syncAppointmentToGoogle(id);
+      // Fizyoterapiste bilgi (saat tekrar boşa çıktı)
+      await sendPatientCancelledEmail(
+        { serviceName: appointment.serviceName, date, timeSlot: appointment.timeSlot },
+        { name: patient.name, email: email ?? "-" },
+      );
+    });
 
     return NextResponse.json({ message: "Randevunuz iptal edildi.", status: appointment.status });
   } catch (err) {

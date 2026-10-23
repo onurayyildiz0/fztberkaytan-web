@@ -5,6 +5,7 @@ import { SERVICE_NAMES } from "@/lib/services";
 
 const dateKey = z.string().refine(isDateKey, "Geçerli bir tarih seçin.");
 const time = z.string().refine(isTime, "Geçerli bir saat seçin.");
+const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Geçersiz kayıt.");
 
 export const createAppointmentSchema = z.object({
   serviceName: z.enum(SERVICE_NAMES, "Lütfen bir hizmet seçin."),
@@ -13,8 +14,37 @@ export const createAppointmentSchema = z.object({
   notes: z.string().trim().max(1000, "Not en fazla 1000 karakter olabilir.").optional().default(""),
 });
 
-export const updateStatusSchema = z.object({
-  status: z.enum(APPOINTMENT_STATUSES),
+/** Fizyoterapistin randevu oluşturması (onaylı olarak kaydedilir) */
+export const adminCreateAppointmentSchema = z.object({
+  patientId: objectId,
+  serviceName: z.enum(SERVICE_NAMES, "Lütfen bir hizmet seçin."),
+  date: dateKey,
+  time,
+  notes: z.string().trim().max(1000).optional().default(""),
+  adminNotes: z.string().trim().max(2000).optional().default(""),
+  /** Çalışma saatleri / kapalı gün / Google dolu saat kontrolünü atla (yalnızca çakışma kontrolü yapılır) */
+  allowOutsideHours: z.boolean().optional().default(false),
+  /** Hastaya bilgilendirme e-postası gönderilsin mi */
+  notifyPatient: z.boolean().optional().default(true),
+});
+
+export const updateAppointmentSchema = z
+  .object({
+    status: z.enum(APPOINTMENT_STATUSES).optional(),
+    adminNotes: z.string().trim().max(2000).optional(),
+  })
+  .refine((d) => d.status !== undefined || d.adminNotes !== undefined, "Güncellenecek bir alan gönderin.");
+
+export const rescheduleSchema = z.object({
+  date: dateKey,
+  time,
+  allowOutsideHours: z.boolean().optional().default(false),
+  notifyPatient: z.boolean().optional().default(true),
+});
+
+export const closedDaySchema = z.object({
+  date: dateKey,
+  reason: z.string().trim().max(120).optional().default(""),
 });
 
 export const workingHoursSchema = z.object({
@@ -31,4 +61,5 @@ export const workingHoursSchema = z.object({
 });
 
 export type CreateAppointmentInput = z.input<typeof createAppointmentSchema>;
+export type AdminCreateAppointmentInput = z.input<typeof adminCreateAppointmentSchema>;
 export type WorkingHoursInput = z.infer<typeof workingHoursSchema>;

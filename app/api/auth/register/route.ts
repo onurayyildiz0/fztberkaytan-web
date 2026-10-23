@@ -5,7 +5,7 @@ import { sendAccountExistsEmail, sendVerificationEmail } from "@/lib/emails";
 import { isDuplicateKeyError, jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
 import { LIMITS, consumeRateLimit, getClientIp, tooManyRequestsMessage } from "@/lib/rate-limit";
-import { registerSchema, toFieldErrors } from "@/lib/validations/auth";
+import { CONSENT_VERSION, registerSchema, toFieldErrors } from "@/lib/validations/auth";
 import { VERIFICATION_TTL_HOURS, appBaseUrl, createVerificationLink } from "@/lib/verification";
 import User from "@/models/User";
 
@@ -68,6 +68,8 @@ export async function POST(request: Request) {
       phone,
       role: "patient",
       emailVerified: null,
+      consentAt: new Date(),
+      consentVersion: CONSENT_VERSION,
     });
 
     const link = await createVerificationLink(user._id, baseUrl);

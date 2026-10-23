@@ -1,0 +1,217 @@
+import "server-only";
+import { createSign } from "node:crypto";
+
+/**
+ * Google Takvim entegrasyonu (servis hesabı ile, kullanıcı girişi gerektirmez).
+ *
+ * Kurulum: Google Cloud'da servis hesabı oluşturulur, Calendar API açılır ve fizyoterapistin
+ * takvimi "Etkinliklerde değişiklik yapma" yetkisiyle servis hesabının e-postasıyla paylaşılır.
+ * Ortam değişkenleri: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_CALENDAR_ID
+ *
+ * Bu modül hata fırlatmaz: Google'a ulaşılamazsa randevu sistemi takvimsiz çalışmaya devam eder.
+ */
+
+// Adresler yalnızca otomatik testlerde sahte sunucuya yönlendirmek için değiştirilebilir
+const TOKEN_URL = process.env.GOOGLE_OAUTH_TOKEN_URL || "https://oauth2.googleapis.com/token";
+const API = process.env.GOOGLE_CALENDAR_API_BASE || "https://www.googleapis.com/calendar/v3";
+const SCOPE = "https://www.googleapis.com/auth/calendar";
+export const CALENDAR_TIME_ZONE = "Europe/Istanbul";
+
+type Config = { email: string; privateKey: string; calendarId: string };
+
+function getConfig(): Config | null {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim();
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+  const calendarId = process.env.GOOGLE_CALENDAR_ID?.trim();
+  if (!email || !privateKey || !calendarId) return null;
+  return { email, privateKey, calendarId };
+}
+
+export function isGoogleCalendarConfigured(): boolean {
+  return getConfig() !== null;
+}
+
+/* ---------- Erişim token'ı (servis hesabı JWT → OAuth token) ---------- */
+
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+function base64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+async function getAccessToken(config: Config): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64url(
+    JSON.stringify({ iss: config.email, scope: SCOPE, aud: TOKEN_URL, iat: now, exp: now + 3600 }),
+  );
+  const signer = createSign("RSA-SHA256");
+  signer.update(`${header}.${claims}`);
+  const signature = signer.sign(config.privateKey).toString("base64url");
+
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${header}.${claims}.${signature}`,
+    }),
+  });
+  const data = (await res.json()) as { access_token?: string; expires_in?: number; error_description?: string };
+  if (!res.ok || !data.access_token) {
+    throw new Error(`Google token alınamadı: ${data.error_description ?? res.status}`);
+  }
+  cachedToken = { value: data.access_token, expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 };
+  return data.access_token;
+}
+
+async function googleFetch(config: Config, path: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken(config);
+  return fetch(`${API}${path}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
+    signal: AbortSignal.timeout(8000),
+  });
+}
+
+const calendarPath = (config: Config) => `/calendars/${encodeURIComponent(config.calendarId)}`;
+
+/* ---------- Dolu saatler (iki yönlü senkron: takvimdeki etkinlikler sitede saati kapatır) ---------- */
+
+export type BusyInterval = { start: Date; end: Date };
+
+const busyCache = new Map<string, { at: number; value: BusyInterval[] }>();
+const BUSY_CACHE_MS = 60_000;
+
+/** Takvimdeki dolu aralıklar. "Müsait" olarak işaretlenmiş etkinlikler (ör. tüm gün doğum günü) dahil değildir. */
+export async function getBusyIntervals(timeMin: Date, timeMax: Date): Promise<BusyInterval[]> {
+  const config = getConfig();
+  if (!config) return [];
+
+  const key = `${timeMin.toISOString()}|${timeMax.toISOString()}`;
+  const cached = busyCache.get(key);
+  if (cached && Date.now() - cached.at < BUSY_CACHE_MS) return cached.value;
+
+  try {
+    const res = await googleFetch(config, "/freeBusy", {
+      method: "POST",
+      body: JSON.stringify({
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        timeZone: CALENDAR_TIME_ZONE,
+        items: [{ id: config.calendarId }],
+      }),
+    });
+    const data = (await res.json()) as {
+      calendars?: Record<string, { busy?: { start: string; end: string }[]; errors?: unknown[] }>;
+    };
+    if (!res.ok) throw new Error(`freeBusy ${res.status}`);
+    const cal = data.calendars?.[config.calendarId];
+    if (cal?.errors?.length) throw new Error(`freeBusy takvim hatası: ${JSON.stringify(cal.errors)}`);
+    const value = (cal?.busy ?? []).map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
+    busyCache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    console.error("[google-calendar] Dolu saatler alınamadı:", error);
+    return [];
+  }
+}
+
+export function clearBusyCache() {
+  busyCache.clear();
+}
+
+/* ---------- Etkinlik oluşturma / güncelleme / silme ---------- */
+
+export type CalendarEventInput = {
+  appointmentId: string;
+  summary: string;
+  description: string;
+  start: Date;
+  end: Date;
+  location?: string;
+};
+
+function eventBody(input: CalendarEventInput) {
+  return {
+    summary: input.summary,
+    description: input.description,
+    location: input.location,
+    start: { dateTime: input.start.toISOString(), timeZone: CALENDAR_TIME_ZONE },
+    end: { dateTime: input.end.toISOString(), timeZone: CALENDAR_TIME_ZONE },
+    // Etkinliğin bu sistemden geldiğini işaretler
+    extendedProperties: { private: { appointmentId: input.appointmentId, source: "fztberkaytan" } },
+    reminders: { useDefault: true },
+  };
+}
+
+/** Etkinliği oluşturur ya da günceller; etkinlik kimliğini döndürür (başarısızsa null). */
+export async function upsertCalendarEvent(input: CalendarEventInput, existingEventId?: string | null): Promise<string | null> {
+  const config = getConfig();
+  if (!config) return null;
+  try {
+    if (existingEventId) {
+      const res = await googleFetch(config, `${calendarPath(config)}/events/${encodeURIComponent(existingEventId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(eventBody(input)),
+      });
+      if (res.ok) return existingEventId;
+      // Etkinlik takvimden elle silinmişse yeniden oluştur
+      if (res.status !== 404 && res.status !== 410) throw new Error(`Etkinlik güncellenemedi: ${res.status}`);
+    }
+    const res = await googleFetch(config, `${calendarPath(config)}/events`, {
+      method: "POST",
+      body: JSON.stringify(eventBody(input)),
+    });
+    const data = (await res.json()) as { id?: string; error?: { message?: string } };
+    if (!res.ok || !data.id) throw new Error(`Etkinlik oluşturulamadı: ${data.error?.message ?? res.status}`);
+    return data.id;
+  } catch (error) {
+    console.error("[google-calendar]", error);
+    return null;
+  } finally {
+    clearBusyCache();
+  }
+}
+
+/** Etkinliği siler. Zaten yoksa da başarılı sayılır. */
+export async function deleteCalendarEvent(eventId: string): Promise<boolean> {
+  const config = getConfig();
+  if (!config) return false;
+  try {
+    const res = await googleFetch(config, `${calendarPath(config)}/events/${encodeURIComponent(eventId)}`, {
+      method: "DELETE",
+    });
+    if (res.ok || res.status === 404 || res.status === 410) return true;
+    throw new Error(`Etkinlik silinemedi: ${res.status}`);
+  } catch (error) {
+    console.error("[google-calendar]", error);
+    return false;
+  } finally {
+    clearBusyCache();
+  }
+}
+
+/** Bağlantı testi (admin paneli için) */
+export async function testGoogleCalendar(): Promise<{ ok: boolean; message: string }> {
+  const config = getConfig();
+  if (!config) return { ok: false, message: "Google Takvim ayarları yapılmamış." };
+  try {
+    const res = await googleFetch(config, calendarPath(config));
+    const data = (await res.json()) as { summary?: string; error?: { message?: string } };
+    if (!res.ok) {
+      return {
+        ok: false,
+        message:
+          res.status === 404
+            ? "Takvim bulunamadı. Takvimin servis hesabıyla paylaşıldığından emin olun."
+            : `Google hatası: ${data.error?.message ?? res.status}`,
+      };
+    }
+    return { ok: true, message: `Bağlı: ${data.summary ?? config.calendarId}` };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Bağlantı kurulamadı." };
+  }
+}

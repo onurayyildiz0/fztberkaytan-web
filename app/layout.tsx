@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { SERVICES } from "@/lib/services";
 import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
@@ -37,7 +38,6 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     title: siteConfig.title,
     description: siteConfig.description,
-    // public/og-image.jpg (1200x630) eklendiğinde aktif olur
     images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: siteConfig.name }],
   },
   twitter: {
@@ -84,12 +84,8 @@ const jsonLd = {
   ],
   hasMap: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(siteConfig.address.full)}`,
   medicalSpecialty: "Physiotherapy",
-  availableService: [
-    { "@type": "MedicalProcedure", name: "Ön Değerlendirme" },
-    { "@type": "MedicalTherapy", name: "Fizyoterapi Hizmetleri" },
-    { "@type": "MedicalProcedure", name: "Fizyoterapi Danışmanlığı" },
-    { "@type": "MedicalTherapy", name: "Klinik Pilates Hizmetleri" },
-  ],
+  // Hizmet listesi tek kaynaktan (lib/services.ts) gelir
+  availableService: SERVICES.map((s) => ({ "@type": "MedicalTherapy", name: s.name, description: s.description })),
   founder: {
     "@type": "Person",
     name: "Berkay Tan",

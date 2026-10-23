@@ -11,6 +11,8 @@ type CalendarProps = {
   maxDate: DateKey;
   /** Randevuya açık haftanın günleri (0 = Pazar) */
   openDays: number[];
+  /** Tek seferlik kapalı tarihler (tatil/izin) */
+  closedDates?: DateKey[];
 };
 
 const WEEK_HEADERS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -27,7 +29,7 @@ function shiftMonth(start: DateKey, delta: number): DateKey {
   return dateToKey(d);
 }
 
-export default function Calendar({ value, onChange, minDate, maxDate, openDays }: CalendarProps) {
+export default function Calendar({ value, onChange, minDate, maxDate, openDays, closedDates = [] }: CalendarProps) {
   const [visible, setVisible] = useState<DateKey>(monthStart(value ?? minDate));
 
   const first = keyToDate(visible);
@@ -42,7 +44,8 @@ export default function Calendar({ value, onChange, minDate, maxDate, openDays }
   const canPrev = visible > monthStart(minDate);
   const canNext = shiftMonth(visible, 1) <= maxDate;
 
-  const isEnabled = (key: DateKey) => key >= minDate && key <= maxDate && openDays.includes(dayOfWeek(key));
+  const isEnabled = (key: DateKey) =>
+    key >= minDate && key <= maxDate && openDays.includes(dayOfWeek(key)) && !closedDates.includes(key);
 
   return (
     <div className="w-full max-w-sm">

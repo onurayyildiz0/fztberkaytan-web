@@ -13,6 +13,7 @@ const NAV: PanelNavItem[] = [
   { href: "/hasta-paneli/hizmetler", label: "Hizmetler & Fiyatlar", icon: "services" },
   { href: "/hasta-paneli/randevu-al", label: "Randevu Al", icon: "book" },
   { href: "/hasta-paneli/randevularim", label: "Randevularım", icon: "myAppointments" },
+  { href: "/hasta-paneli/hesabim", label: "Hesabım", icon: "account" },
 ];
 
 export default async function PatientLayout({ children }: { children: React.ReactNode }) {

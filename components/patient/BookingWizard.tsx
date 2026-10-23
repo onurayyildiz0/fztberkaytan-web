@@ -25,12 +25,13 @@ type BookingWizardProps = {
   minDate: DateKey;
   maxDate: DateKey;
   openDays: number[];
+  closedDates: DateKey[];
 };
 
 const STEPS = ["Hizmet", "Tarih & Saat", "Not", "Onay"] as const;
 const NOTE_MAX = 1000;
 
-export default function BookingWizard({ initialService, minDate, maxDate, openDays }: BookingWizardProps) {
+export default function BookingWizard({ initialService, minDate, maxDate, openDays, closedDates }: BookingWizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(initialService ? 1 : 0);
   const [service, setService] = useState<ServiceName | null>(initialService);
@@ -213,6 +214,7 @@ export default function BookingWizard({ initialService, minDate, maxDate, openDa
                   minDate={minDate}
                   maxDate={maxDate}
                   openDays={openDays}
+                  closedDates={closedDates}
                 />
                 <div>
                   {!date ? (

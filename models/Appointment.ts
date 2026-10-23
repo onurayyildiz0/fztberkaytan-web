@@ -1,5 +1,13 @@
 import { Schema, model, models, type HydratedDocument, type Model, type Types } from "mongoose";
-import { SLOT_BLOCKING_STATUSES, APPOINTMENT_STATUSES, type AppointmentStatus } from "@/lib/appointments";
+import {
+  APPOINTMENT_SOURCES,
+  APPOINTMENT_STATUSES,
+  CANCELLED_BY,
+  SLOT_BLOCKING_STATUSES,
+  type AppointmentSource,
+  type AppointmentStatus,
+  type CancelledBy,
+} from "@/lib/appointments";
 import { SERVICE_NAMES, type ServiceName } from "@/lib/services";
 
 export interface IAppointment {
@@ -10,8 +18,19 @@ export interface IAppointment {
   /** Ör. "10:00 - 11:00" */
   timeSlot: string;
   status: AppointmentStatus;
+  /** Hastanın notu */
   notes: string;
+  /** Yalnızca fizyoterapistin gördüğü özel not */
+  adminNotes: string;
+  /** Randevuyu kim oluşturdu: hasta (online) veya fizyoterapist */
+  source: AppointmentSource;
+  cancelledBy?: CancelledBy;
+  /** Hatırlatma e-postası gönderildiyse zamanı (erteleme sonrası sıfırlanır) */
+  reminderSentAt?: Date | null;
+  /** Google Takvim etkinlik kimliği */
+  googleEventId?: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export type AppointmentDocument = HydratedDocument<IAppointment>;
@@ -25,9 +44,14 @@ const AppointmentSchema = new Schema<IAppointment>(
     timeSlot: { type: String, required: true, trim: true },
     status: { type: String, enum: APPOINTMENT_STATUSES, default: "pending", required: true },
     notes: { type: String, trim: true, maxlength: 1000, default: "" },
+    adminNotes: { type: String, trim: true, maxlength: 2000, default: "" },
+    source: { type: String, enum: APPOINTMENT_SOURCES, default: "online", required: true },
+    cancelledBy: { type: String, enum: CANCELLED_BY },
+    reminderSentAt: { type: Date, default: null },
+    googleEventId: { type: String, default: null },
     createdAt: { type: Date, default: Date.now, immutable: true },
   },
-  { versionKey: false },
+  { versionKey: false, timestamps: { createdAt: false, updatedAt: true } },
 );
 
 AppointmentSchema.index({ date: 1 });

@@ -5,11 +5,11 @@ import { CalendarX2 } from "lucide-react";
 import AppointmentDetailDialog from "@/components/admin/AppointmentDetailDialog";
 import StatusActions from "@/components/admin/StatusActions";
 import { EmptyState, StatusBadge } from "@/components/panel/ui";
-import type { AppointmentDTO } from "@/lib/appointments";
+import type { AdminAppointmentDTO } from "@/lib/appointments";
 import { formatDateShort } from "@/lib/dates";
 
 type AppointmentListProps = {
-  appointments: AppointmentDTO[];
+  appointments: AdminAppointmentDTO[];
   /** Satırda hızlı durum butonlarını göster */
   showActions?: boolean;
   /** Hasta adı yerine yalnızca hizmeti göster (hasta detay sayfası için) */

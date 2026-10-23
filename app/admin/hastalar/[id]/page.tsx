@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Mail, NotebookPen, Phone } from "lucide-react";
+import { ArrowLeft, CalendarDays, CalendarPlus, Mail, NotebookPen, Phone } from "lucide-react";
 import AppointmentList from "@/components/admin/AppointmentList";
+import EditPatientCard from "@/components/admin/EditPatientCard";
 import SourceBadge from "@/components/admin/SourceBadge";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { Card, CardHeader } from "@/components/panel/ui";
 import { APPOINTMENT_STATUSES, STATUS_LABELS } from "@/lib/appointments";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { findAppointments } from "@/lib/data/appointments";
+import { findAdminAppointments } from "@/lib/data/appointments";
 import { getPatient } from "@/lib/data/patients";
 import { formatTimestamp } from "@/lib/dates";
 
@@ -21,7 +22,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const patient = await getPatient(id);
   if (!patient) notFound();
 
-  const appointments = await findAppointments({ patientId: id, sort: -1 });
+  const appointments = await findAdminAppointments({ patientId: id, sort: -1 });
   const summary = APPOINTMENT_STATUSES.map((s) => ({
     status: s,
     count: appointments.filter((a) => a.status === s).length,
@@ -39,7 +40,22 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         eyebrow="Hasta Kartı"
         title={patient.name}
         description={`Eklenme: ${formatTimestamp(patient.createdAt.toISOString())}`}
-        actions={<SourceBadge source={patient.source} hasAccount={!!patient.userId} />}
+        actions={
+          <>
+            <SourceBadge source={patient.source} hasAccount={!!patient.userId} />
+            <EditPatientCard
+              patientId={id}
+              hasAccount={!!patient.userId}
+              initial={{ name: patient.name, phone: patient.phone ?? "", email: patient.email ?? "", notes: patient.notes ?? "" }}
+            />
+            <Link
+              href={`/admin/randevular/yeni?hasta=${id}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-800"
+            >
+              <CalendarPlus className="size-4" aria-hidden="true" /> Randevu Oluştur
+            </Link>
+          </>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

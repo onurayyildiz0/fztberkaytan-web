@@ -140,3 +140,20 @@ export const WEEKDAYS = [
   { value: 6, label: "Cumartesi", short: "Cmt" },
   { value: 0, label: "Pazar", short: "Paz" },
 ] as const;
+
+/**
+ * Türkiye 2016'dan beri yaz/kış saati uygulamadan sabit UTC+3'tedir.
+ * Randevunun gerçek başlangıç anı (hatırlatma, 24 saat iptal kuralı, Google Takvim için).
+ */
+export const ISTANBUL_UTC_OFFSET = "+03:00";
+
+export function appointmentStartsAt(key: DateKey, timeSlotOrStart: string): Date {
+  const start = timeSlotOrStart.split(" - ")[0] ?? timeSlotOrStart;
+  return new Date(`${key}T${start}:00${ISTANBUL_UTC_OFFSET}`);
+}
+
+/** Haftanın pazartesi günü (takvim görünümü için) */
+export function startOfWeek(key: DateKey): DateKey {
+  const dow = dayOfWeek(key); // 0 = Pazar
+  return addDays(key, dow === 0 ? -6 : 1 - dow);
+}

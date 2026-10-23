@@ -128,8 +128,9 @@ const sections: LegalSection[] = [
         <p>mevzuatın izin verdiği ölçüde aktarılabilir.</p>
         <p>
           Web sitesi ve online randevu sistemi; barındırma (hosting) hizmeti, hesap ve randevu kayıtlarının saklandığı
-          bulut veritabanı hizmeti (MongoDB Atlas) ve randevu bildirimlerinin iletildiği e-posta gönderim hizmeti
-          (Resend) kullanılarak çalışmaktadır. Bu hizmet sağlayıcıların sunucuları yurt dışında bulunabilir. Yurt
+          bulut veritabanı hizmeti (MongoDB Atlas), randevu bildirimlerinin iletildiği e-posta gönderim hizmeti
+          (Resend) ve onaylanan randevuların planlandığı takvim hizmeti (Google Takvim) kullanılarak çalışmaktadır.
+          Takvime yalnızca ad soyad, hizmet, randevu saati ve telefon numarası aktarılır; randevu notları aktarılmaz. Bu hizmet sağlayıcıların sunucuları yurt dışında bulunabilir. Yurt
           dışına veri aktarımı söz konusu olduğunda aktarım, KVKK’nın 9. maddesinde öngörülen şartlar ve uygun
           güvenceler çerçevesinde gerçekleştirilir.
         </p>
@@ -205,7 +206,7 @@ export default function KvkkPage() {
   return (
     <LegalPage
       title="KVKK Aydınlatma Metni"
-      lastUpdated="11 Ekim 2026"
+      lastUpdated="19 Ekim 2026"
       intro={<p className="font-medium text-slate-900">6698 Sayılı Kişisel Verilerin Korunması Kanunu Kapsamında Aydınlatma Metni</p>}
       sections={sections}
       currentPath={PATH}

@@ -1,8 +1,15 @@
-import { CalendarDays, Clock, MessageSquareText } from "lucide-react";
+import { CalendarDays, CalendarPlus, Clock, MessageSquareText, Phone } from "lucide-react";
 import CancelAppointmentButton from "@/components/patient/CancelAppointmentButton";
 import { StatusBadge } from "@/components/panel/ui";
-import { PATIENT_CANCELLABLE, type AppointmentDTO } from "@/lib/appointments";
+import {
+  ACTIVE_STATUSES,
+  PATIENT_CANCEL_MIN_HOURS,
+  canPatientCancel,
+  type AppointmentDTO,
+} from "@/lib/appointments";
+import { googleCalendarTemplateUrl } from "@/lib/calendar-links";
 import { formatDateLong } from "@/lib/dates";
+import { links, siteConfig } from "@/lib/site";
 
 export default function PatientAppointmentItem({
   appointment: a,
@@ -11,6 +18,11 @@ export default function PatientAppointmentItem({
   appointment: AppointmentDTO;
   allowCancel?: boolean;
 }) {
+  const startsAt = new Date(a.startsAt);
+  const isUpcoming = startsAt > new Date();
+  const isActive = (ACTIVE_STATUSES as readonly string[]).includes(a.status) && isUpcoming;
+  const cancellable = allowCancel && canPatientCancel(a.status, startsAt);
+
   return (
     <li className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -34,8 +46,33 @@ export default function PatientAppointmentItem({
             <span className="line-clamp-2">{a.notes}</span>
           </p>
         )}
+        {a.status === "approved" && isUpcoming && (
+          <a
+            href={googleCalendarTemplateUrl(a)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 hover:underline"
+          >
+            <CalendarPlus className="size-4" aria-hidden="true" /> Google Takvime Ekle
+          </a>
+        )}
       </div>
-      {allowCancel && PATIENT_CANCELLABLE.includes(a.status) && <CancelAppointmentButton appointmentId={a.id} />}
+
+      {cancellable ? (
+        <CancelAppointmentButton appointmentId={a.id} />
+      ) : (
+        allowCancel &&
+        isActive && (
+          // 24 saatten az kaldı: online iptal kapalı, telefon yönlendirmesi
+          <p className="max-w-xs text-xs text-slate-500 sm:text-right">
+            Randevuya {PATIENT_CANCEL_MIN_HOURS} saatten az kaldığı için iptal veya değişiklik için lütfen{" "}
+            <a href={links.tel} className="inline-flex items-center gap-1 font-semibold text-teal-700">
+              <Phone className="size-3" aria-hidden="true" /> {siteConfig.phoneDisplay}
+            </a>{" "}
+            numarasını arayın.
+          </p>
+        )
+      )}
     </li>
   );
 }

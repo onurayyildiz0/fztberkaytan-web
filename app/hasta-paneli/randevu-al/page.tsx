@@ -3,7 +3,7 @@ import BookingWizard from "@/components/patient/BookingWizard";
 import { PageHeader } from "@/components/panel/ui";
 import { BOOKING_WINDOW_DAYS } from "@/lib/appointments";
 import { requirePatientPage } from "@/lib/auth/guards";
-import { getWorkingHours } from "@/lib/data/appointments";
+import { getClosedDays, getWorkingHours } from "@/lib/data/appointments";
 import { addDays, todayKey } from "@/lib/dates";
 import { SERVICES } from "@/lib/services";
 
@@ -20,9 +20,10 @@ export default async function BookAppointmentPage({
   const slug = Array.isArray(sp.hizmet) ? sp.hizmet[0] : sp.hizmet;
   const initialService = SERVICES.find((s) => s.slug === slug)?.name ?? null;
 
-  const workingHours = await getWorkingHours();
-  const openDays = workingHours.filter((d) => !d.isDayOff && d.slots.length > 0).map((d) => d.dayOfWeek);
   const today = todayKey();
+  const maxDate = addDays(today, BOOKING_WINDOW_DAYS);
+  const [workingHours, closedDays] = await Promise.all([getWorkingHours(), getClosedDays(today, maxDate)]);
+  const openDays = workingHours.filter((d) => !d.isDayOff && d.slots.length > 0).map((d) => d.dayOfWeek);
 
   return (
     <>
@@ -30,8 +31,9 @@ export default async function BookAppointmentPage({
       <BookingWizard
         initialService={initialService}
         minDate={today}
-        maxDate={addDays(today, BOOKING_WINDOW_DAYS)}
+        maxDate={maxDate}
         openDays={openDays}
+        closedDates={closedDays.map((d) => d.date)}
       />
     </>
   );

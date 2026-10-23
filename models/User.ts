@@ -10,6 +10,9 @@ export interface IUser {
   phone?: string;
   /** E-posta doğrulandığı an; null ise doğrulanmamış (hasta giriş yapamaz) */
   emailVerified: Date | null;
+  /** Kayıtta KVKK aydınlatma + kullanım koşulları onay zamanı ve metin sürümü */
+  consentAt?: Date;
+  consentVersion?: string;
   createdAt: Date;
 }
 
@@ -50,6 +53,8 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    consentAt: { type: Date },
+    consentVersion: { type: String },
     createdAt: {
       type: Date,
       default: Date.now,

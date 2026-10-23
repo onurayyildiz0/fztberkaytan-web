@@ -12,7 +12,8 @@ import {
   type RegisterFormInput,
 } from "@/lib/validations/auth";
 
-type FormValues = Required<RegisterFormInput>;
+// Onay kutusu başlangıçta işaretsizdir; şema yalnızca "true" kabul eder
+type FormValues = Omit<Required<RegisterFormInput>, "consent"> & { consent: boolean };
 
 type RegisterResponse = {
   message: string;
@@ -25,6 +26,7 @@ const initialValues: FormValues = {
   phone: "",
   password: "",
   confirmPassword: "",
+  consent: false,
 };
 
 export default function RegisterForm() {
@@ -50,8 +52,8 @@ export default function RegisterForm() {
     }
 
     // Şifre tekrarı sunucuya gönderilmez
-    const { name, email, phone, password } = parsed.data;
-    const payload = { name, email, phone, password };
+    const { name, email, phone, password, consent } = parsed.data;
+    const payload = { name, email, phone, password, consent };
 
     setLoading(true);
     try {
@@ -166,6 +168,35 @@ export default function RegisterForm() {
         disabled={disabled}
         required
       />
+
+      <div>
+        <label className="flex items-start gap-3 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={values.consent}
+            onChange={(e) => update("consent", e.target.checked)}
+            disabled={disabled}
+            aria-invalid={errors.consent ? true : undefined}
+            aria-describedby={errors.consent ? "consent-error" : undefined}
+            className="mt-0.5 size-4 shrink-0 rounded border-slate-300 accent-teal-700"
+          />
+          <span>
+            <Link href="/kvkk" target="_blank" className="font-medium text-teal-700 underline">
+              KVKK Aydınlatma Metni
+            </Link>
+            &apos;ni okudum ve{" "}
+            <Link href="/kullanim-kosullari" target="_blank" className="font-medium text-teal-700 underline">
+              Kullanım Koşulları
+            </Link>
+            &apos;nı kabul ediyorum.
+          </span>
+        </label>
+        {errors.consent && (
+          <p id="consent-error" className="mt-1.5 text-sm text-red-600">
+            {errors.consent}
+          </p>
+        )}
+      </div>
 
       <button
         type="submit"

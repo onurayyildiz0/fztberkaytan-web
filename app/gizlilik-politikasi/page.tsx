@@ -53,7 +53,7 @@ const sections: LegalSection[] = [
       <>
         <p>
           Toplanan bilgiler; randevu taleplerinin oluşturulması ve yönetilmesi, randevu durumuna ilişkin e-posta
-          bildirimlerinin gönderilmesi, sizinle iletişim kurulması, talep edilen fizyoterapi hizmetinin planlanması,
+          bildirimlerinin ve randevu hatırlatmalarının gönderilmesi, randevuların fizyoterapistin takviminde planlanması, sizinle iletişim kurulması, talep edilen fizyoterapi hizmetinin planlanması,
           evde hizmet talep edilmesi halinde adresin belirlenmesi, kullanıcı hesabının güvenliğinin sağlanması, web
           sitesinin güvenli ve düzgün şekilde çalışmasının sağlanması, kullanıcı deneyiminin geliştirilmesi ve yasal
           yükümlülüklerin yerine getirilmesi amacıyla kullanılabilir.
@@ -75,7 +75,8 @@ const sections: LegalSection[] = [
           items={[
             <><Term>Barındırma (hosting):</Term> Web sitesinin yayınlanması ve güvenli şekilde erişilebilir olması için kullanılan sunucu hizmeti.</>,
             <><Term>Veritabanı (MongoDB Atlas):</Term> Kullanıcı hesabı ve randevu kayıtlarının saklandığı bulut veritabanı hizmeti.</>,
-            <><Term>E-posta gönderimi (Resend):</Term> Randevu talebi, onay, ret ve iptal bildirimlerinin e-posta ile iletilmesi.</>,
+            <><Term>E-posta gönderimi (Resend):</Term> Randevu talebi, onay, ret, tarih değişikliği, iptal ve hatırlatma bildirimlerinin e-posta ile iletilmesi.</>,
+            <><Term>Takvim (Google Takvim):</Term> Onaylanan randevuların fizyoterapistin iş takvimine aktarılması. Takvime yalnızca ad soyad, hizmet, randevu saati ve telefon numarası aktarılır; randevu notlarınız aktarılmaz.</>,
           ]}
         />
         <p>
@@ -217,7 +218,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalPage
       title="Gizlilik Politikası"
-      lastUpdated="11 Ekim 2026"
+      lastUpdated="19 Ekim 2026"
       intro={
         <>
           <p>
