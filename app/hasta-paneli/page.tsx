@@ -24,8 +24,8 @@ const QUICK_ACTIONS: { href: string; title: string; description: string; icon: L
   },
   {
     href: "/hasta-paneli/hizmetler",
-    title: "Hizmetler ve Fiyatlar",
-    description: "Sunulan hizmetleri ve seans ücretlerini inceleyin.",
+    title: "Hizmetler",
+    description: "Sunulan hizmetleri ve seans sürelerini inceleyin.",
     icon: Tags,
   },
 ];

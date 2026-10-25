@@ -8,7 +8,7 @@ import FormAlert from "@/components/auth/FormAlert";
 import Calendar from "@/components/patient/Calendar";
 import { Card } from "@/components/panel/ui";
 import { formatDateLong, type DateKey } from "@/lib/dates";
-import { SERVICES, formatPrice, getService, serviceDurationMinutes, serviceLabel, type ServiceName } from "@/lib/services";
+import { SERVICES, getService, serviceDurationMinutes, serviceLabel, type ServiceName } from "@/lib/services";
 
 type Slot = { start: string; label: string };
 
@@ -209,7 +209,7 @@ export default function BookingWizard({ initialService, minDate, maxDate }: Book
                         {active && <Check className="size-5 text-teal-700" aria-hidden="true" />}
                       </span>
                       <span className="mt-1 text-sm text-slate-500">
-                        {s.durationMinutes} dk · {formatPrice(s.price)}
+                        {s.durationMinutes} dakika
                       </span>
                     </label>
                   );
