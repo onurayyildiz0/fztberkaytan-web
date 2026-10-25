@@ -7,6 +7,12 @@ import {
   matchesPrefix,
 } from "@/lib/auth/roles";
 
+/** lib/auth/admin.ts ile aynı kural; o dosya "server-only" olduğu için middleware'de burada tekrarlanır */
+function isAdminAddress(email: string | null | undefined): boolean {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return !!adminEmail && !!email && email.trim().toLowerCase() === adminEmail;
+}
+
 /**
  * Edge uyumlu temel yapılandırma (middleware tarafından kullanılır).
  * Veritabanı / bcrypt gibi Node.js bağımlılıkları burada OLMAMALIDIR;
@@ -32,6 +38,9 @@ export const authConfig = {
       if (trigger === "update" && typeof session?.name === "string") {
         token.name = session.name.trim().slice(0, 100);
       }
+      // ADMIN_EMAIL değiştiyse rolü e-postasıyla artık uyuşmayan eski oturum geçersizdir (çıkış yapılmış sayılır).
+      // Aksi hâlde eski admin oturumu /admin ↔ / arasında yönlendirilip giriş sayfasına da ulaşamaz.
+      if (isRole(token.role) && (token.role === "admin") !== isAdminAddress(token.email)) return null;
       return token;
     },
     session({ session, token }) {
