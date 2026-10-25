@@ -55,9 +55,13 @@ models/         Mongoose modelleri (User, Patient, Appointment, token'lar)
 scripts/        Yönetim komutları
 ```
 
-## Yayın (Vercel)
+## Yayın (Netlify)
 
-1. Repo Vercel'e bağlanır; production ortam değişkenleri girilir (`AUTH_SECRET` yeni üretilir, `AUTH_URL=https://www.fztberkaytan.com`).
-2. `vercel.json` günlük görevi her gün 10:00'da (TR) çalıştırır: hatırlatma e-postaları, süresi geçen talepler ve öneriler.
-3. Alan adı DNS kayıtları Vercel'e yönlendirilir.
-4. Yayın öncesi açık yasal maddeler `lib/legal.ts` → `LEGAL_PENDING_ITEMS` içinde listelenir ve admin panelinde uyarı olarak görünür.
+1. Repo Netlify'a bağlanır (Next.js otomatik tanınır, ayarlar `netlify.toml`'da).
+   Ortam değişkenleri girilir: `AUTH_SECRET` yeni üretilir, `AUTH_URL=https://www.fztberkaytan.com`, `AUTH_TRUST_HOST=true`.
+2. Günlük görev: [cron-job.org](https://cron-job.org) üzerinde her gün 10:00 (Europe/Istanbul) için
+   `GET https://www.fztberkaytan.com/api/cron/daily` isteği, `Authorization: Bearer <CRON_SECRET>` başlığıyla tanımlanır.
+   Hatırlatma e-postalarını, süresi geçen talepleri ve önerileri işler.
+3. Alan adı DNS kayıtları Netlify'a yönlendirilir.
+4. Ücretsiz planda aylık 300 kredi vardır (her production deploy 15 kredi); güncellemeler toplu yayınlanmalıdır.
+5. Yayın öncesi açık yasal maddeler `lib/legal.ts` → `LEGAL_PENDING_ITEMS` içinde listelenir ve admin panelinde uyarı olarak görünür.

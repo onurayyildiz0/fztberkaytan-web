@@ -1,0 +1,7 @@
+# Netlify Next.js'i otomatik tanır; burada yalnızca Node sürümü sabitlenir.
+# Günlük görev (/api/cron/daily) cron-job.org gibi harici bir zamanlayıcıyla çağrılır (bkz. README).
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"

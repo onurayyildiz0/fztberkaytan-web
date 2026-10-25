@@ -24,7 +24,7 @@ function authorized(request: Request): boolean {
 }
 
 /**
- * GET /api/cron/daily — günde bir kez çalışır (vercel.json → her gün 10:00 TR).
+ * GET /api/cron/daily — günde bir kez çalışır (harici zamanlayıcı, cron-job.org → her gün 10:00 TR).
  * 1) Saati geçmiş ama hâlâ beklemede kalan talepleri düşürür.
  * 2) Yarınki onaylı randevular için hatırlatma e-postası gönderir.
  * 3) Google Takvim'e eklenememiş onaylı randevuları tekrar dener.

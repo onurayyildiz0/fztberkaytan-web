@@ -75,11 +75,15 @@ export async function resetRateLimit(key: string): Promise<void> {
 }
 
 /**
- * İstemci IP adresi. Vercel x-forwarded-for başlığını kendisi yazar (istemcinin gönderdiği değer iletilmez),
- * bu yüzden ilk değer güvenilirdir. Vercel dışında, bu başlığı yeniden yazan bir proxy olmadan çalıştırılırsa
- * IP sınırları atlatılabilir.
+ * İstemci IP adresi.
+ * - Netlify: x-nf-client-connection-ip platform tarafından yazılır, istemci değiştiremez.
+ *   (x-forwarded-for'un ilk değeri istemcinin gönderdiği sahte bir değer olabilir; bu yüzden önce bakılır.)
+ * - Vercel ve diğer proxy'ler: x-forwarded-for ilk değer.
+ * Bu başlıkları yeniden yazan bir platform/proxy olmadan çalıştırılırsa IP sınırları atlatılabilir.
  */
 export function getClientIp(headers: Headers): string {
+  const netlify = headers.get("x-nf-client-connection-ip")?.trim();
+  if (netlify) return netlify;
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim();
   return headers.get("x-real-ip")?.trim() || "unknown";

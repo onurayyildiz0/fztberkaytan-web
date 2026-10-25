@@ -139,9 +139,9 @@ const sections: LegalSection[] = [
           head={["Altyapı", "Amaç ve veri kapsamı"]}
           rows={[
             [
-              <Term key="k">Barındırma (Vercel)</Term>,
+              <Term key="k">Barındırma (Netlify)</Term>,
               <span key="v">
-                Sitenin çalışması, isteklerin işlenmesi ve gerekli teknik kayıtların tutulması. Site Vercel Inc. altyapısında
+                Sitenin çalışması, isteklerin işlenmesi ve gerekli teknik kayıtların tutulması. Site Netlify, Inc. (ABD) altyapısında
                 barındırılır.
               </span>,
             ],
