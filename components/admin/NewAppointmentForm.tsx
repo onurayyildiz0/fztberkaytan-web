@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarPlus, Globe, LoaderCircle, Search, UserPlus, X } from "lucide-react";
 import FormAlert from "@/components/auth/FormAlert";
 import { formatDateLong, isTime, todayKey } from "@/lib/dates";
-import { SERVICES, type ServiceName } from "@/lib/services";
+import { SERVICES, getService, serviceDurationMinutes, type ServiceName } from "@/lib/services";
 
 export type PickedPatient = { id: string; name: string; phone: string | null; email: string | null; hasAccount: boolean };
 type Slot = { start: string; label: string };
@@ -24,6 +24,10 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
   const router = useRouter();
   const [patient, setPatient] = useState<PickedPatient | null>(initialPatient);
   const [service, setService] = useState<ServiceName>(SERVICES[0].name);
+  const serviceOptions = getService(service)?.options ?? [];
+  const [option, setOption] = useState<string | null>(null);
+  const optionReady = serviceOptions.length === 0 || !!option;
+  const duration = serviceDurationMinutes(service, option);
   const [date, setDate] = useState(initialDate ?? todayKey());
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [time, setTime] = useState(initialTime ?? "");
@@ -36,10 +40,10 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!date) return;
+    if (!date || !optionReady) return;
     const controller = new AbortController();
     setSlots(null);
-    fetch(`/api/admin/availability?date=${date}`, { signal: controller.signal })
+    fetch(`/api/admin/availability?date=${date}&duration=${duration}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d: { slots?: Slot[] }) => {
         const list = d.slots ?? [];
@@ -49,7 +53,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [date, initialDate, initialTime]);
+  }, [date, initialDate, initialTime, duration, optionReady]);
 
   const chosenTime = outside ? customTime : time;
 
@@ -57,6 +61,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
     e.preventDefault();
     setError(null);
     if (!patient) return setError("Lütfen bir hasta seçin.");
+    if (!optionReady) return setError("Lütfen hizmet seçeneğini seçin.");
     if (!isTime(chosenTime)) return setError("Lütfen bir saat seçin.");
 
     setSaving(true);
@@ -67,6 +72,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
         body: JSON.stringify({
           patientId: patient.id,
           serviceName: service,
+          serviceOption: option,
           date,
           time: chosenTime,
           notes,
@@ -124,16 +130,41 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
         <legend className="text-sm font-semibold text-slate-800">2. Hizmet</legend>
         <select
           value={service}
-          onChange={(e) => setService(e.target.value as ServiceName)}
+          onChange={(e) => {
+            setService(e.target.value as ServiceName);
+            setOption(null);
+            setTime("");
+          }}
           aria-label="Hizmet"
           className={`mt-2 ${inputClass}`}
         >
           {SERVICES.map((s) => (
             <option key={s.slug} value={s.name}>
-              {s.name}
+              {s.name} ({s.durationMinutes} dk)
             </option>
           ))}
         </select>
+        {serviceOptions.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Hizmet seçeneği">
+            {serviceOptions.map((o) => (
+              <button
+                key={o.slug}
+                type="button"
+                role="radio"
+                aria-checked={option === o.name}
+                onClick={() => {
+                  setOption(o.name);
+                  setTime("");
+                }}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 ${
+                  option === o.name ? "bg-teal-700 text-white ring-teal-700" : "bg-white text-slate-700 ring-slate-200 hover:ring-teal-400"
+                }`}
+              >
+                {o.name}
+              </button>
+            ))}
+          </div>
+        )}
       </fieldset>
 
       <fieldset>
@@ -161,8 +192,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
               </p>
             ) : slots.length === 0 ? (
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                Bu gün için müsait saat yok (kapalı gün, dolu ya da çalışma saati tanımlı değil). Gerekirse aşağıdan özel saat
-                seçebilirsiniz.
+                Bu gün için Google müsaitlik takviminde uygun boş saat yok. Gerekirse aşağıdan özel saat seçebilirsiniz.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Müsait saatler">
@@ -187,7 +217,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
 
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" checked={outside} onChange={(e) => setOutside(e.target.checked)} />
-          Çalışma saati dışında / özel saat (yalnızca başka randevuyla çakışma kontrol edilir)
+          Müsaitlik dışında / özel saat (yalnızca başka randevuyla çakışma kontrol edilir)
         </label>
         {outside && (
           <input
@@ -205,7 +235,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
         <legend className="mb-2 text-sm font-semibold text-slate-800">4. Notlar (isteğe bağlı)</legend>
         <div>
           <label htmlFor="appt-notes" className="text-xs font-medium text-slate-600">
-            Randevu notu
+            Şikâyet açıklaması
           </label>
           <textarea id="appt-notes" rows={3} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)} className={`mt-1 ${inputClass}`} />
         </div>

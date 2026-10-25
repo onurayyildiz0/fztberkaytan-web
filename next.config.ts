@@ -7,7 +7,7 @@ const isDev = process.env.NODE_ENV !== "production";
  * - script/style 'unsafe-inline': Next.js App Router sayfaya satır içi script (hydration verisi)
  *   ve JSON-LD ekler. Nonce tabanlı CSP tüm sayfaları dinamik render'a zorlayacağı için tercih edilmedi.
  * - 'unsafe-eval' yalnızca geliştirme ortamında (React hata ayıklama araçları için) eklenir.
- * - frame-src: Anasayfadaki Google Haritalar gömülü haritası.
+ * - frame-src 'none': Sitede gömülü üçüncü taraf içerik (harita vb.) yoktur.
  * - frame-ancestors 'none': Site başka bir sitenin içine gömülemez (clickjacking koruması).
  */
 const csp = [
@@ -17,7 +17,7 @@ const csp = [
   "img-src 'self' data: blob:",
   "font-src 'self'",
   `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
-  "frame-src https://www.google.com https://maps.google.com",
+  "frame-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
   "base-uri 'self'",

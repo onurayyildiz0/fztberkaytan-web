@@ -1,23 +1,43 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SLOT_DURATION_MINUTES } from "@/lib/appointments";
 import { requirePatientApi } from "@/lib/auth/guards";
-import { getAvailableSlots } from "@/lib/data/appointments";
-import { isDateKey, slotLabel } from "@/lib/dates";
+import { getAvailability, makeTimeSlot } from "@/lib/data/appointments";
+import { addDays, isDateKey, monthRange } from "@/lib/dates";
 import { jsonError } from "@/lib/http";
+import { isServiceName, isValidServiceOption, serviceDurationMinutes } from "@/lib/services";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/appointments/availability?date=YYYY-MM-DD → seçilen gün için boş slotlar */
+/**
+ * GET /api/appointments/availability?service=..&option=..&date=YYYY-MM-DD → o günün boş saatleri
+ * GET /api/appointments/availability?service=..&option=..&month=YYYY-MM  → ayın müsait günleri
+ * Süre seçilen hizmete göre hesaplanır.
+ */
 export async function GET(request: NextRequest) {
   const { error } = await requirePatientApi();
   if (error) return error;
 
-  const date = request.nextUrl.searchParams.get("date");
-  if (!isDateKey(date)) return jsonError("Geçerli bir tarih gönderin (YYYY-MM-DD).", 400);
+  const sp = request.nextUrl.searchParams;
+  const service = sp.get("service") ?? "";
+  const option = sp.get("option") || null;
+  if (!isServiceName(service) || !isValidServiceOption(service, option)) {
+    return jsonError("Geçerli bir hizmet seçin.", 400);
+  }
+  const duration = serviceDurationMinutes(service, option);
 
-  const slots = await getAvailableSlots(date);
+  const month = sp.get("month");
+  if (month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    const range = monthRange(`${month}-01`);
+    const availability = await getAvailability(range.start, addDays(range.end, -1), duration);
+    return NextResponse.json({ month, dates: [...availability.keys()].sort() });
+  }
+
+  const date = sp.get("date");
+  if (!isDateKey(date)) return jsonError("Geçerli bir tarih gönderin (YYYY-MM-DD).", 400);
+  const starts = (await getAvailability(date, date, duration)).get(date) ?? [];
   return NextResponse.json({
     date,
-    slots: slots.map((start) => ({ start, label: slotLabel(start, SLOT_DURATION_MINUTES) })),
+    durationMinutes: duration,
+    slots: starts.map((start) => ({ start, label: makeTimeSlot(start, duration) })),
   });
 }

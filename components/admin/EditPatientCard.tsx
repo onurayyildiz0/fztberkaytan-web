@@ -4,11 +4,9 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import FormAlert from "@/components/auth/FormAlert";
-import FormField from "@/components/auth/FormField";
+import PatientFormFields from "@/components/admin/PatientFormFields";
 import { toFieldErrors, type FieldErrors } from "@/lib/validations/auth";
-import { patientSchema } from "@/lib/validations/patients";
-
-type Values = { name: string; phone: string; email: string; notes: string };
+import { patientSchema, type PatientFormValues } from "@/lib/validations/patients";
 
 /** Hasta kartı düzenleme / silme (admin) */
 export default function EditPatientCard({
@@ -17,34 +15,37 @@ export default function EditPatientCard({
   hasAccount,
 }: {
   patientId: string;
-  initial: Values;
+  initial: PatientFormValues;
   hasAccount: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<Values>(initial);
-  const [errors, setErrors] = useState<FieldErrors<Values>>({});
+  const [values, setValues] = useState<PatientFormValues>(initial);
+  const [errors, setErrors] = useState<FieldErrors<PatientFormValues>>({});
   const [alert, setAlert] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const set = (k: keyof Values, v: string) => {
-    setValues((s) => ({ ...s, [k]: v }));
-    setErrors((e) => ({ ...e, [k]: undefined }));
-  };
+  function update(key: keyof PatientFormValues, value: string) {
+    setValues((s) => ({ ...s, [key]: value }));
+    setErrors((e) => ({ ...e, [key]: undefined }));
+  }
 
   async function save(e: FormEvent) {
     e.preventDefault();
     setAlert(null);
     const parsed = patientSchema.safeParse(values);
-    if (!parsed.success) return setErrors(toFieldErrors(parsed.error) as FieldErrors<Values>);
+    if (!parsed.success) {
+      setErrors(toFieldErrors(parsed.error) as FieldErrors<PatientFormValues>);
+      return setAlert("Lütfen işaretli alanları kontrol edin.");
+    }
     setSaving(true);
     const res = await fetch(`/api/admin/patients/${patientId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     }).catch(() => null);
-    const data = (await res?.json().catch(() => ({}))) as { message?: string; errors?: FieldErrors<Values> } | undefined;
+    const data = (await res?.json().catch(() => ({}))) as { message?: string; errors?: FieldErrors<PatientFormValues> } | undefined;
     setSaving(false);
     if (!res?.ok) {
       if (data?.errors) setErrors(data.errors);
@@ -72,6 +73,8 @@ export default function EditPatientCard({
         type="button"
         onClick={() => {
           setValues(initial);
+          setErrors({});
+          setAlert(null);
           setOpen(true);
         }}
         className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
@@ -83,39 +86,19 @@ export default function EditPatientCard({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-labelledby="hasta-duzenle">
-      <form onSubmit={save} noValidate className="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <form onSubmit={save} noValidate className="max-h-[92vh] w-full max-w-2xl space-y-5 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <h2 id="hasta-duzenle" className="text-lg font-bold text-slate-900">
           Hasta Kartını Düzenle
         </h2>
         {alert && <FormAlert type="error" message={alert} />}
-        <FormField id="edit-name" label="Ad Soyad *" value={values.name} onChange={(e) => set("name", e.target.value)} error={errors.name} disabled={saving} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id="edit-phone" label="Telefon" type="tel" value={values.phone} onChange={(e) => set("phone", e.target.value)} error={errors.phone} disabled={saving} />
-          <FormField
-            id="edit-email"
-            label="E-posta"
-            type="email"
-            value={values.email}
-            onChange={(e) => set("email", e.target.value)}
-            error={errors.email}
-            disabled={saving}
-            hint={hasAccount ? "Hastanın giriş e-postası değişmez; yalnızca kart bilgisi güncellenir." : undefined}
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-notes" className="block text-sm font-medium text-slate-700">
-            Notlar
-          </label>
-          <textarea
-            id="edit-notes"
-            rows={4}
-            maxLength={2000}
-            value={values.notes}
-            onChange={(e) => set("notes", e.target.value)}
-            disabled={saving}
-            className="mt-1.5 block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-100 focus:outline-none"
-          />
-        </div>
+        <PatientFormFields
+          values={values}
+          errors={errors}
+          onChange={update}
+          disabled={saving}
+          idPrefix="edit"
+          emailHint={hasAccount ? "Hastanın giriş e-postası değişmez; yalnızca kart bilgisi güncellenir." : undefined}
+        />
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           {!hasAccount ? (
             <button

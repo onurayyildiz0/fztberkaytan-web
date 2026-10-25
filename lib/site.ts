@@ -4,7 +4,7 @@ export const siteConfig = {
   title: "Fizyoterapist Berkay Tan | Eyüpsultan Fizyoterapi & Klinik Pilates",
   description:
     "Eyüpsultan Alibeyköy'de kişiye özel fizyoterapi, rehabilitasyon ve klinik pilates. Ortopedik, nörolojik, pediatrik ve geriatrik rehabilitasyon alanlarında bireysel tedavi ve egzersiz programları.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://fztberkaytan.com",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.fztberkaytan.com",
   locale: "tr_TR",
   email: "fztberkay@gmail.com",
   phoneDisplay: "0536 972 28 22",
@@ -26,7 +26,7 @@ export const links = {
   whatsapp: `https://wa.me/${siteConfig.phoneE164.replace("+", "")}?text=${encodeURIComponent(
     "Merhaba, randevu almak istiyorum.",
   )}`,
-  mapsEmbed: `https://www.google.com/maps?q=${encodeURIComponent(siteConfig.address.full)}&output=embed`,
+  mapsSearch: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(siteConfig.address.full)}`,
   mapsDirections: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
     siteConfig.address.full,
   )}`,

@@ -5,7 +5,7 @@ import GoogleCalendarStatus from "@/components/admin/GoogleCalendarStatus";
 import WeekCalendar, { CalendarLegend } from "@/components/admin/WeekCalendar";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { findAdminAppointments, getClosedDays, getWorkingHours } from "@/lib/data/appointments";
+import { findAdminAppointments, getAvailabilityBlocksByDay } from "@/lib/data/appointments";
 import { addDays, formatDateShort, isDateKey, startOfWeek, todayKey } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Takvim" };
@@ -23,18 +23,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   const weekStart = startOfWeek(isDateKey(tarih) ? tarih : today);
   const weekEnd = addDays(weekStart, 7);
 
-  const [appointments, workingHours, closedDays] = await Promise.all([
+  const [appointments, availability] = await Promise.all([
     findAdminAppointments({
       from: weekStart,
       to: weekEnd,
       status: showCancelled ? undefined : ["pending", "approved", "completed", "no_show"],
+      // Başka haftadaki randevuların bu haftaya önerilen yeni saatleri de görünsün
+      includeProposals: true,
     }),
-    getWorkingHours(),
-    getClosedDays(weekStart, addDays(weekStart, 6)),
+    getAvailabilityBlocksByDay(weekStart, addDays(weekStart, 6)),
   ]);
-
-  const workingSlots = Object.fromEntries(workingHours.map((d) => [d.dayOfWeek, d.isDayOff ? [] : d.slots]));
-  const closedMap = Object.fromEntries(closedDays.map((c) => [c.date, c.reason]));
   const qs = (week: string, cancelled = showCancelled) => `/admin/takvim?tarih=${week}${cancelled ? "&iptaller=1" : ""}`;
   const pending = appointments.filter((a) => a.status === "pending").length;
 
@@ -86,7 +84,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         </div>
       </div>
 
-      <WeekCalendar weekStart={weekStart} appointments={appointments} workingSlots={workingSlots} closedDays={closedMap} />
+      {availability === null && (
+        <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+          Google &quot;Randevu Müsaitliği&quot; takvimi bağlı değil; hastalar şu an online randevu alamaz.{" "}
+          <a href="/admin/musaitlik" className="font-semibold underline">
+            Kurulum adımları
+          </a>
+        </p>
+      )}
+      <WeekCalendar weekStart={weekStart} appointments={appointments} availability={availability} />
     </>
   );
 }

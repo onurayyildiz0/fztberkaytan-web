@@ -75,7 +75,10 @@ export type AppointmentSource = (typeof APPOINTMENT_SOURCES)[number];
 export const CANCELLED_BY = ["patient", "admin", "system"] as const;
 export type CancelledBy = (typeof CANCELLED_BY)[number];
 
+/** Eski kayıtlar ve süresi bilinmeyen hizmetler için varsayılan seans süresi */
 export const SLOT_DURATION_MINUTES = 60;
+/** Müsaitlik bloklarında randevu başlangıçları bu aralıklarla önerilir (dakika) */
+export const AVAILABILITY_STEP_MINUTES = 15;
 /** Bugünden itibaren kaç gün sonrasına randevu alınabilir (hasta) */
 export const BOOKING_WINDOW_DAYS = 60;
 /** Bir hastanın aynı anda sahip olabileceği en fazla aktif (bekleyen/onaylı) online randevu */
@@ -85,10 +88,16 @@ export const MAX_ACTIVE_APPOINTMENTS_PER_PATIENT = 3;
 export type AppointmentDTO = {
   id: string;
   serviceName: ServiceName;
+  serviceOption: string | null;
+  durationMinutes: number;
   date: string; // YYYY-MM-DD
   timeSlot: string;
   startsAt: string; // ISO
+  endsAt: string; // ISO
+  /** Fizyoterapistin önerdiği yeni tarih/saat (hasta onayı bekleniyor) */
+  proposal: { date: string; timeSlot: string } | null;
   status: AppointmentStatus;
+  /** Hastanın şikâyet açıklaması (randevu formu) */
   notes: string;
   source: AppointmentSource;
   createdAt: string; // ISO
@@ -105,4 +114,6 @@ export type AdminAppointmentDTO = AppointmentDTO & {
   adminNotes: string;
   cancelledBy: CancelledBy | null;
   googleSynced: boolean;
+  /** Hastanın online hesabı var mı (erteleme önerisi yalnızca panelden yanıtlanabilir) */
+  patientHasAccount: boolean;
 };

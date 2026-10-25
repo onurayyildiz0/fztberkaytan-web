@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { dateToKey, dayOfWeek, keyToDate, type DateKey } from "@/lib/dates";
+import { useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
+import { dateToKey, keyToDate, type DateKey } from "@/lib/dates";
 
 type CalendarProps = {
   value: DateKey | null;
   onChange: (key: DateKey) => void;
   minDate: DateKey;
   maxDate: DateKey;
-  /** Randevuya açık haftanın günleri (0 = Pazar) */
-  openDays: number[];
-  /** Tek seferlik kapalı tarihler (tatil/izin) */
-  closedDates?: DateKey[];
+  /** Görünen ayda randevuya müsait günler (fizyoterapistin Google Takvim müsaitliğinden) */
+  availableDates: DateKey[];
+  /** Görünen ay değiştiğinde "YYYY-MM" ile çağrılır (müsait günler yeniden yüklenir) */
+  onMonthChange: (month: string) => void;
+  loading?: boolean;
 };
 
 const WEEK_HEADERS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
@@ -29,8 +30,13 @@ function shiftMonth(start: DateKey, delta: number): DateKey {
   return dateToKey(d);
 }
 
-export default function Calendar({ value, onChange, minDate, maxDate, openDays, closedDates = [] }: CalendarProps) {
+export default function Calendar({ value, onChange, minDate, maxDate, availableDates, onMonthChange, loading }: CalendarProps) {
   const [visible, setVisible] = useState<DateKey>(monthStart(value ?? minDate));
+
+  useEffect(() => {
+    onMonthChange(visible.slice(0, 7));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const first = keyToDate(visible);
   const leading = (first.getUTCDay() + 6) % 7; // Pazartesi ile başlayan hafta
@@ -43,9 +49,7 @@ export default function Calendar({ value, onChange, minDate, maxDate, openDays, 
 
   const canPrev = visible > monthStart(minDate);
   const canNext = shiftMonth(visible, 1) <= maxDate;
-
-  const isEnabled = (key: DateKey) =>
-    key >= minDate && key <= maxDate && openDays.includes(dayOfWeek(key)) && !closedDates.includes(key);
+  const isEnabled = (key: DateKey) => !loading && key >= minDate && key <= maxDate && availableDates.includes(key);
 
   return (
     <div className="w-full max-w-sm">
@@ -59,8 +63,9 @@ export default function Calendar({ value, onChange, minDate, maxDate, openDays, 
         >
           <ChevronLeft className="size-5" aria-hidden="true" />
         </button>
-        <p className="font-semibold text-slate-900 capitalize" aria-live="polite">
+        <p className="flex items-center gap-2 font-semibold text-slate-900 capitalize" aria-live="polite">
           {monthFormatter.format(first)}
+          {loading && <LoaderCircle className="size-4 animate-spin text-slate-400" aria-label="Yükleniyor" />}
         </p>
         <button
           type="button"

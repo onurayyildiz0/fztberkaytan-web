@@ -7,6 +7,7 @@ import StatusActions from "@/components/admin/StatusActions";
 import { EmptyState, StatusBadge } from "@/components/panel/ui";
 import type { AdminAppointmentDTO } from "@/lib/appointments";
 import { formatDateShort } from "@/lib/dates";
+import { serviceLabel } from "@/lib/services";
 
 type AppointmentListProps = {
   appointments: AdminAppointmentDTO[];
@@ -52,13 +53,18 @@ export default function AppointmentList({
               </div>
               <div className="min-w-0">
                 <p className="truncate font-semibold text-slate-900">
-                  {hidePatient ? a.serviceName : (a.patient?.name ?? "Silinmiş hasta")}
+                  {hidePatient ? serviceLabel(a.serviceName, a.serviceOption) : (a.patient?.name ?? "Silinmiş hasta")}
                 </p>
                 <p className="truncate text-sm text-slate-500">
-                  {hidePatient ? `${formatDateShort(a.date)} · ${a.timeSlot}` : `${a.serviceName} · ${a.timeSlot}`}
+                  {hidePatient ? `${formatDateShort(a.date)} · ${a.timeSlot}` : `${serviceLabel(a.serviceName, a.serviceOption)} · ${a.timeSlot}`}
                 </p>
                 <div className="mt-1.5">
                   <StatusBadge status={a.status} />
+                  {a.proposal && (
+                    <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+                      Erteleme önerildi
+                    </span>
+                  )}
                 </div>
               </div>
             </button>

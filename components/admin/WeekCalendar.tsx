@@ -2,38 +2,53 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarOff, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import AppointmentDetailDialog from "@/components/admin/AppointmentDetailDialog";
 import { StatusBadge } from "@/components/panel/ui";
-import { SLOT_DURATION_MINUTES, STATUS_BLOCK_CLASSES, type AdminAppointmentDTO } from "@/lib/appointments";
+import { STATUS_BLOCK_CLASSES, type AdminAppointmentDTO } from "@/lib/appointments";
 import { WEEKDAYS, addDays, dayOfWeek, formatDateShort, nowMinutes, timeToMinutes, todayKey, type DateKey } from "@/lib/dates";
+import { serviceLabel } from "@/lib/services";
+
+type DayBlock = { start: string; end: string };
 
 type Props = {
   weekStart: DateKey;
   appointments: AdminAppointmentDTO[];
-  /** dayOfWeek → çalışma slotları (kapalı gün için boş) */
-  workingSlots: Record<number, string[]>;
-  closedDays: Record<DateKey, string>;
+  /** Google "Randevu Müsaitliği" blokları; null = takvim bağlı değil */
+  availability: Record<DateKey, DayBlock[]> | null;
 };
 
 const HOUR_HEIGHT = 64; // px
+const toMinutes = (t: string) => (t === "24:00" ? 24 * 60 : timeToMinutes(t));
+const rangeOf = (timeSlot: string) => {
+  const [s, e] = timeSlot.split(" - ");
+  const start = timeToMinutes(s!);
+  let end = e ? timeToMinutes(e) : start + 60;
+  if (end <= start) end += 24 * 60;
+  return { start, end };
+};
 
-export default function WeekCalendar({ weekStart, appointments, workingSlots, closedDays }: Props) {
+export default function WeekCalendar({ weekStart, appointments, availability }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = appointments.find((a) => a.id === selectedId) ?? null;
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const today = todayKey();
 
-  // Saat aralığı: çalışma saatleri ve randevuları kapsar (varsayılan 08:00 – 20:00)
-  const starts = [
-    ...Object.values(workingSlots).flat().map(timeToMinutes),
-    ...appointments.map((a) => timeToMinutes(a.timeSlot.split(" - ")[0]!)),
-  ];
-  const minHour = Math.min(8, ...starts.map((m) => Math.floor(m / 60)));
-  const maxHour = Math.max(20, ...starts.map((m) => Math.ceil((m + SLOT_DURATION_MINUTES) / 60)));
-  const hours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
+  const proposals = appointments
+    .filter((a) => a.proposal && (a.status === "pending" || a.status === "approved"))
+    .map((a) => ({ appointment: a, date: a.proposal!.date, timeSlot: a.proposal!.timeSlot }));
 
-  // Şu anki saat çizgisi
+  // Saat aralığı: müsaitlik, randevular ve öneriler kapsanır (varsayılan 08:00 – 20:00)
+  const ranges = [
+    ...Object.values(availability ?? {}).flat().map((b) => ({ start: toMinutes(b.start), end: toMinutes(b.end) })),
+    ...appointments.map((a) => rangeOf(a.timeSlot)),
+    ...proposals.map((p) => rangeOf(p.timeSlot)),
+  ];
+  const minHour = Math.min(8, ...ranges.map((r) => Math.floor(r.start / 60)));
+  const maxHour = Math.min(24, Math.max(20, ...ranges.map((r) => Math.ceil(r.end / 60))));
+  const hours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
+  const top = (minutes: number) => ((minutes - minHour * 60) / 60) * HOUR_HEIGHT;
+
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const tick = () => setNow(nowMinutes());
@@ -42,8 +57,7 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
     return () => clearInterval(t);
   }, []);
 
-  const byDay = (key: DateKey) =>
-    appointments.filter((a) => a.date === key).sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
+  const byDay = (key: DateKey) => appointments.filter((a) => a.date === key).sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
 
   return (
     <>
@@ -58,16 +72,10 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
               <div key={key} className={`border-b border-l border-slate-200 px-2 py-3 text-center ${isToday ? "bg-teal-50" : ""}`}>
                 <p className={`text-xs font-semibold uppercase ${isToday ? "text-teal-700" : "text-slate-500"}`}>{label.short}</p>
                 <p className={`text-lg font-bold ${isToday ? "text-teal-800" : "text-slate-900"}`}>{Number(key.slice(8))}</p>
-                {closedDays[key] !== undefined && (
-                  <p className="mt-0.5 truncate text-[11px] font-medium text-red-600" title={closedDays[key]}>
-                    Kapalı{closedDays[key] ? `: ${closedDays[key]}` : ""}
-                  </p>
-                )}
               </div>
             );
           })}
 
-          {/* Saat etiketleri */}
           <div className="relative" style={{ height: hours.length * HOUR_HEIGHT }}>
             {hours.map((h, i) => (
               <span key={h} className="absolute right-2 -translate-y-1/2 text-xs text-slate-400 tabular-nums" style={{ top: i * HOUR_HEIGHT }}>
@@ -77,60 +85,79 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
           </div>
 
           {days.map((key) => {
-            const closed = closedDays[key] !== undefined;
-            const slots = closed ? [] : (workingSlots[dayOfWeek(key)] ?? []);
-            const dayItems = byDay(key);
+            const blocks = availability?.[key] ?? [];
             const isPastDay = key < today;
             return (
-              <div
-                key={key}
-                className={`relative border-l border-slate-200 ${closed ? "bg-[repeating-linear-gradient(45deg,#f8fafc,#f8fafc_8px,#f1f5f9_8px,#f1f5f9_16px)]" : slots.length === 0 ? "bg-slate-50/70" : ""}`}
-                style={{ height: hours.length * HOUR_HEIGHT }}
-              >
+              <div key={key} className="relative border-l border-slate-200 bg-slate-50/60" style={{ height: hours.length * HOUR_HEIGHT }}>
                 {hours.map((h, i) => (
                   <div key={h} className="absolute inset-x-0 border-t border-slate-100" style={{ top: i * HOUR_HEIGHT }} />
                 ))}
 
-                {/* Boş çalışma slotları → yeni randevu */}
-                {!isPastDay &&
-                  slots
-                    .filter((s) => !dayItems.some((a) => a.timeSlot.startsWith(s) && a.status !== "cancelled" && a.status !== "rejected"))
-                    .filter((s) => key !== today || now === null || timeToMinutes(s) > now)
-                    .map((s) => (
-                      <Link
-                        key={s}
-                        href={`/admin/randevular/yeni?tarih=${key}&saat=${s}`}
-                        title={`${s} – yeni randevu`}
-                        className="group absolute inset-x-1 flex items-center justify-center rounded-md border border-dashed border-teal-200 text-xs text-teal-700 opacity-60 transition hover:border-teal-400 hover:bg-teal-50 hover:opacity-100"
-                        style={{ top: ((timeToMinutes(s) - minHour * 60) / 60) * HOUR_HEIGHT + 2, height: (SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT - 4 }}
+                {/* Google Takvim müsaitlik blokları → tıklayınca yeni randevu */}
+                {blocks.map((b, i) => {
+                  const start = toMinutes(b.start);
+                  const end = toMinutes(b.end);
+                  const body = (
+                    <span className="absolute top-1 left-1.5 text-[10px] font-semibold text-emerald-700 opacity-70 group-hover:opacity-100">
+                      Müsait {b.start}–{b.end === "24:00" ? "24:00" : b.end}
+                    </span>
+                  );
+                  const style = { top: top(start), height: Math.max(((end - start) / 60) * HOUR_HEIGHT, 8) };
+                  return isPastDay ? (
+                    <div key={i} className="absolute inset-x-0 bg-emerald-50/70" style={style} />
+                  ) : (
+                    <Link
+                      key={i}
+                      href={`/admin/randevular/yeni?tarih=${key}&saat=${b.start}`}
+                      title={`${b.start}–${b.end} müsait · yeni randevu`}
+                      className="group absolute inset-x-0 border-y border-emerald-200 bg-emerald-50 transition hover:bg-emerald-100"
+                      style={style}
+                    >
+                      {body}
+                    </Link>
+                  );
+                })}
+
+                {/* Bekleyen erteleme önerileri */}
+                {proposals
+                  .filter((p) => p.date === key)
+                  .map((p) => {
+                    const r = rangeOf(p.timeSlot);
+                    return (
+                      <button
+                        key={`p-${p.appointment.id}`}
+                        type="button"
+                        onClick={() => setSelectedId(p.appointment.id)}
+                        className="absolute inset-x-1 z-[1] overflow-hidden rounded-md border-2 border-dashed border-amber-400 bg-amber-50/90 px-2 py-1 text-left text-xs text-amber-900"
+                        style={{ top: top(r.start) + 2, height: Math.max(((r.end - r.start) / 60) * HOUR_HEIGHT - 4, 22) }}
                       >
-                        <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                          <Plus className="size-3" aria-hidden="true" /> {s}
-                        </span>
-                      </Link>
-                    ))}
+                        <span className="block truncate font-semibold">Öneri: {p.appointment.patient?.name ?? "Hasta"}</span>
+                        <span className="block truncate opacity-80">Hasta onayı bekleniyor</span>
+                      </button>
+                    );
+                  })}
 
                 {/* Randevular */}
-                {dayItems.map((a) => {
-                  const start = timeToMinutes(a.timeSlot.split(" - ")[0]!);
+                {byDay(key).map((a) => {
+                  const r = rangeOf(a.timeSlot);
                   return (
                     <button
                       key={a.id}
                       type="button"
                       onClick={() => setSelectedId(a.id)}
-                      className={`absolute inset-x-1 overflow-hidden rounded-md border-l-4 px-2 py-1 text-left text-xs shadow-sm transition hover:shadow-md ${STATUS_BLOCK_CLASSES[a.status]}`}
-                      style={{ top: ((start - minHour * 60) / 60) * HOUR_HEIGHT + 2, height: (SLOT_DURATION_MINUTES / 60) * HOUR_HEIGHT - 4 }}
+                      className={`absolute inset-x-1 z-[2] overflow-hidden rounded-md border-l-4 px-2 py-1 text-left text-xs shadow-sm transition hover:shadow-md ${STATUS_BLOCK_CLASSES[a.status]}`}
+                      style={{ top: top(r.start) + 2, height: Math.max(((r.end - r.start) / 60) * HOUR_HEIGHT - 4, 22) }}
                     >
                       <span className="block truncate font-semibold">{a.patient?.name ?? "Hasta"}</span>
                       <span className="block truncate opacity-80">
-                        {a.timeSlot.split(" - ")[0]} · {a.serviceName}
+                        {a.timeSlot.split(" - ")[0]} · {serviceLabel(a.serviceName, a.serviceOption)}
                       </span>
                     </button>
                   );
                 })}
 
                 {key === today && now !== null && now >= minHour * 60 && now <= maxHour * 60 && (
-                  <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500" style={{ top: ((now - minHour * 60) / 60) * HOUR_HEIGHT }}>
+                  <div className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500" style={{ top: top(now) }}>
                     <span className="absolute -top-1.5 -left-1 size-3 rounded-full bg-red-500" />
                   </div>
                 )}
@@ -144,7 +171,7 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
       <div className="space-y-4 lg:hidden">
         {days.map((key) => {
           const items = byDay(key);
-          const closed = closedDays[key] !== undefined;
+          const blocks = availability?.[key] ?? [];
           const label = WEEKDAYS.find((w) => w.value === dayOfWeek(key))!.label;
           return (
             <section key={key} className={`rounded-2xl bg-white shadow-sm ring-1 ${key === today ? "ring-teal-300" : "ring-slate-200"}`}>
@@ -152,18 +179,17 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
                 <h3 className="font-semibold text-slate-900">
                   {label} <span className="font-normal text-slate-500">{formatDateShort(key)}</span>
                 </h3>
-                {closed ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600">
-                    <CalendarOff className="size-3.5" aria-hidden="true" /> Kapalı
-                  </span>
-                ) : (
-                  key >= today && (
-                    <Link href={`/admin/randevular/yeni?tarih=${key}`} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
-                      <Plus className="size-3.5" aria-hidden="true" /> Randevu
-                    </Link>
-                  )
+                {key >= today && (
+                  <Link href={`/admin/randevular/yeni?tarih=${key}`} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
+                    <Plus className="size-3.5" aria-hidden="true" /> Randevu
+                  </Link>
                 )}
               </div>
+              {blocks.length > 0 && (
+                <p className="border-b border-slate-100 px-4 py-2 text-xs text-emerald-700">
+                  Müsait: {blocks.map((b) => `${b.start}–${b.end}`).join(", ")}
+                </p>
+              )}
               {items.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-slate-400">Randevu yok</p>
               ) : (
@@ -174,7 +200,10 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
                         <span className="w-12 shrink-0 text-sm font-bold text-teal-800 tabular-nums">{a.timeSlot.split(" - ")[0]}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold text-slate-900">{a.patient?.name ?? "Hasta"}</span>
-                          <span className="block truncate text-xs text-slate-500">{a.serviceName}</span>
+                          <span className="block truncate text-xs text-slate-500">
+                            {serviceLabel(a.serviceName, a.serviceOption)}
+                            {a.proposal && " · erteleme önerildi"}
+                          </span>
                         </span>
                         <StatusBadge status={a.status} />
                       </button>
@@ -194,24 +223,20 @@ export default function WeekCalendar({ weekStart, appointments, workingSlots, cl
 
 export function CalendarLegend() {
   const items: [string, string][] = [
-    ["Beklemede", "border-amber-400 bg-amber-50"],
-    ["Onaylandı", "border-teal-600 bg-teal-50"],
-    ["Tamamlandı", "border-slate-400 bg-slate-100"],
-    ["Gelmedi", "border-orange-400 bg-orange-50"],
+    ["Beklemede", "border-l-4 border-amber-400 bg-amber-50"],
+    ["Onaylandı", "border-l-4 border-teal-600 bg-teal-50"],
+    ["Tamamlandı", "border-l-4 border-slate-400 bg-slate-100"],
+    ["Gelmedi", "border-l-4 border-orange-400 bg-orange-50"],
+    ["Erteleme önerisi", "border-2 border-dashed border-amber-400 bg-amber-50"],
+    ["Müsait (Google)", "border border-emerald-200 bg-emerald-50"],
   ];
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
       {items.map(([label, cls]) => (
         <li key={label} className="flex items-center gap-1.5">
-          <span className={`inline-block size-3 rounded-sm border-l-4 ${cls}`} aria-hidden="true" /> {label}
+          <span className={`inline-block size-3 rounded-sm ${cls}`} aria-hidden="true" /> {label}
         </li>
       ))}
-      <li className="flex items-center gap-1.5">
-        <span className="inline-block size-3 rounded-sm border border-dashed border-teal-300" aria-hidden="true" /> Boş saat
-      </li>
-      <li className="flex items-center gap-1.5">
-        <span className="inline-block size-3 rounded-sm bg-slate-200" aria-hidden="true" /> Kapalı
-      </li>
     </ul>
   );
 }

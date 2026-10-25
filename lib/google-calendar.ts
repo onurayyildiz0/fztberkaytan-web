@@ -6,7 +6,9 @@ import { createSign } from "node:crypto";
  *
  * Kurulum: Google Cloud'da servis hesabı oluşturulur, Calendar API açılır ve fizyoterapistin
  * takvimi "Etkinliklerde değişiklik yapma" yetkisiyle servis hesabının e-postasıyla paylaşılır.
- * Ortam değişkenleri: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_CALENDAR_ID
+ * Ortam değişkenleri: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY,
+ *   GOOGLE_CALENDAR_ID (randevuların yazıldığı ve dolu saatlerin okunduğu ana takvim),
+ *   GOOGLE_AVAILABILITY_CALENDAR_ID (fizyoterapistin müsait olduğu blokları çizdiği "Randevu Müsaitliği" takvimi)
  *
  * Bu modül hata fırlatmaz: Google'a ulaşılamazsa randevu sistemi takvimsiz çalışmaya devam eder.
  */
@@ -78,49 +80,104 @@ async function googleFetch(config: Config, path: string, init: RequestInit = {})
 
 const calendarPath = (config: Config) => `/calendars/${encodeURIComponent(config.calendarId)}`;
 
-/* ---------- Dolu saatler (iki yönlü senkron: takvimdeki etkinlikler sitede saati kapatır) ---------- */
+/* ---------- Takvim etkinliklerinin okunması ---------- */
 
 export type BusyInterval = { start: Date; end: Date };
 
-const busyCache = new Map<string, { at: number; value: BusyInterval[] }>();
-const BUSY_CACHE_MS = 60_000;
+type RawEvent = {
+  status?: string;
+  transparency?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+  extendedProperties?: { private?: Record<string, string> };
+};
 
-/** Takvimdeki dolu aralıklar. "Müsait" olarak işaretlenmiş etkinlikler (ör. tüm gün doğum günü) dahil değildir. */
+const eventsCache = new Map<string, { at: number; value: RawEvent[] }>();
+const EVENTS_CACHE_MS = 60_000;
+
+/** Tüm gün etkinliğinin tarihini (YYYY-MM-DD) İstanbul gece yarısına çevirir */
+function allDayToDate(key: string): Date {
+  return new Date(`${key}T00:00:00+03:00`);
+}
+
+function eventInterval(e: RawEvent): BusyInterval | null {
+  if (e.start?.dateTime && e.end?.dateTime) return { start: new Date(e.start.dateTime), end: new Date(e.end.dateTime) };
+  if (e.start?.date && e.end?.date) return { start: allDayToDate(e.start.date), end: allDayToDate(e.end.date) };
+  return null;
+}
+
+async function listEvents(config: Config, calendarId: string, timeMin: Date, timeMax: Date): Promise<RawEvent[]> {
+  const key = `${calendarId}|${timeMin.toISOString()}|${timeMax.toISOString()}`;
+  const cached = eventsCache.get(key);
+  if (cached && Date.now() - cached.at < EVENTS_CACHE_MS) return cached.value;
+
+  const items: RawEvent[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "2500",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const res = await googleFetch(config, `/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
+    const data = (await res.json()) as { items?: RawEvent[]; nextPageToken?: string; error?: { message?: string } };
+    if (!res.ok) throw new Error(`Etkinlikler alınamadı (${calendarId}): ${data.error?.message ?? res.status}`);
+    items.push(...(data.items ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  const value = items.filter((e) => e.status !== "cancelled");
+  eventsCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+/**
+ * Ana takvimdeki dolu aralıklar (iki yönlü senkron: fizyoterapistin kişisel etkinlikleri saati kapatır).
+ * - "Müsait" (transparent) olarak işaretlenmiş etkinlikler sayılmaz.
+ * - Bu sistemin oluşturduğu randevu etkinlikleri sayılmaz; randevular zaten veritabanından hesaplanır.
+ */
 export async function getBusyIntervals(timeMin: Date, timeMax: Date): Promise<BusyInterval[]> {
   const config = getConfig();
   if (!config) return [];
-
-  const key = `${timeMin.toISOString()}|${timeMax.toISOString()}`;
-  const cached = busyCache.get(key);
-  if (cached && Date.now() - cached.at < BUSY_CACHE_MS) return cached.value;
-
   try {
-    const res = await googleFetch(config, "/freeBusy", {
-      method: "POST",
-      body: JSON.stringify({
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        timeZone: CALENDAR_TIME_ZONE,
-        items: [{ id: config.calendarId }],
-      }),
-    });
-    const data = (await res.json()) as {
-      calendars?: Record<string, { busy?: { start: string; end: string }[]; errors?: unknown[] }>;
-    };
-    if (!res.ok) throw new Error(`freeBusy ${res.status}`);
-    const cal = data.calendars?.[config.calendarId];
-    if (cal?.errors?.length) throw new Error(`freeBusy takvim hatası: ${JSON.stringify(cal.errors)}`);
-    const value = (cal?.busy ?? []).map((b) => ({ start: new Date(b.start), end: new Date(b.end) }));
-    busyCache.set(key, { at: Date.now(), value });
-    return value;
+    const events = await listEvents(config, config.calendarId, timeMin, timeMax);
+    return events
+      .filter((e) => e.transparency !== "transparent")
+      .filter((e) => e.extendedProperties?.private?.source !== "fztberkaytan")
+      .map(eventInterval)
+      .filter((i): i is BusyInterval => i !== null);
   } catch (error) {
     console.error("[google-calendar] Dolu saatler alınamadı:", error);
     return [];
   }
 }
 
+/**
+ * "Randevu Müsaitliği" takvimindeki bloklar: hastalar yalnızca bu aralıklar içinde randevu alabilir.
+ * Takvim ayarlanmamışsa veya Google'a ulaşılamazsa null döner (müsaitlik yok kabul edilir).
+ */
+export async function getAvailabilityBlocks(timeMin: Date, timeMax: Date): Promise<BusyInterval[] | null> {
+  const config = getConfig();
+  const availabilityId = process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
+  if (!config || !availabilityId) return null;
+  try {
+    const events = await listEvents(config, availabilityId, timeMin, timeMax);
+    return events.map(eventInterval).filter((i): i is BusyInterval => i !== null);
+  } catch (error) {
+    console.error("[google-calendar] Müsaitlik takvimi okunamadı:", error);
+    return null;
+  }
+}
+
+export function isAvailabilityCalendarConfigured(): boolean {
+  return getConfig() !== null && !!process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
+}
+
 export function clearBusyCache() {
-  busyCache.clear();
+  eventsCache.clear();
 }
 
 /* ---------- Etkinlik oluşturma / güncelleme / silme ---------- */
@@ -194,24 +251,40 @@ export async function deleteCalendarEvent(eventId: string): Promise<boolean> {
   }
 }
 
-/** Bağlantı testi (admin paneli için) */
-export async function testGoogleCalendar(): Promise<{ ok: boolean; message: string }> {
+/** Tek bir takvimin erişilebilirliğini test eder */
+async function testCalendar(config: Config, calendarId: string): Promise<{ ok: boolean; summary?: string; error?: string }> {
+  const res = await googleFetch(config, `/calendars/${encodeURIComponent(calendarId)}`);
+  const data = (await res.json()) as { summary?: string; error?: { message?: string } };
+  if (res.ok) return { ok: true, summary: data.summary ?? calendarId };
+  return {
+    ok: false,
+    error:
+      res.status === 404
+        ? `${calendarId} bulunamadı; servis hesabıyla paylaşıldığından emin olun.`
+        : (data.error?.message ?? String(res.status)),
+  };
+}
+
+/** Bağlantı testi (admin paneli için): ana takvim + müsaitlik takvimi */
+export async function testGoogleCalendar(): Promise<{ ok: boolean; message: string; availabilityOk: boolean }> {
   const config = getConfig();
-  if (!config) return { ok: false, message: "Google Takvim ayarları yapılmamış." };
+  if (!config) return { ok: false, availabilityOk: false, message: "Google Takvim ayarları yapılmamış." };
   try {
-    const res = await googleFetch(config, calendarPath(config));
-    const data = (await res.json()) as { summary?: string; error?: { message?: string } };
-    if (!res.ok) {
+    const main = await testCalendar(config, config.calendarId);
+    if (!main.ok) return { ok: false, availabilityOk: false, message: `Ana takvim: ${main.error}` };
+    const availabilityId = process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
+    if (!availabilityId) {
       return {
-        ok: false,
-        message:
-          res.status === 404
-            ? "Takvim bulunamadı. Takvimin servis hesabıyla paylaşıldığından emin olun."
-            : `Google hatası: ${data.error?.message ?? res.status}`,
+        ok: true,
+        availabilityOk: false,
+        message: `Bağlı: ${main.summary}. Müsaitlik takvimi ayarlanmamış (GOOGLE_AVAILABILITY_CALENDAR_ID).`,
       };
     }
-    return { ok: true, message: `Bağlı: ${data.summary ?? config.calendarId}` };
+    const avail = await testCalendar(config, availabilityId);
+    return avail.ok
+      ? { ok: true, availabilityOk: true, message: `Bağlı: ${main.summary} · Müsaitlik: ${avail.summary}` }
+      : { ok: true, availabilityOk: false, message: `Ana takvim bağlı; müsaitlik takvimi: ${avail.error}` };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Bağlantı kurulamadı." };
+    return { ok: false, availabilityOk: false, message: error instanceof Error ? error.message : "Bağlantı kurulamadı." };
   }
 }

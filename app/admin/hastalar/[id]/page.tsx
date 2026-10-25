@@ -11,10 +11,17 @@ import { APPOINTMENT_STATUSES, STATUS_LABELS } from "@/lib/appointments";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { findAdminAppointments } from "@/lib/data/appointments";
 import { getPatient } from "@/lib/data/patients";
-import { formatTimestamp } from "@/lib/dates";
+import { formatDateLong, formatTimestamp, todayKey } from "@/lib/dates";
+import { GENDER_LABELS } from "@/lib/validations/patients";
 
 export const metadata: Metadata = { title: "Hasta Kartı" };
 export const dynamic = "force-dynamic";
+
+function ageOf(birthDate: string): number {
+  const today = todayKey();
+  const age = Number(today.slice(0, 4)) - Number(birthDate.slice(0, 4));
+  return today.slice(5) < birthDate.slice(5) ? age - 1 : age;
+}
 
 export default async function PatientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdminPage();
@@ -46,7 +53,20 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
             <EditPatientCard
               patientId={id}
               hasAccount={!!patient.userId}
-              initial={{ name: patient.name, phone: patient.phone ?? "", email: patient.email ?? "", notes: patient.notes ?? "" }}
+              initial={{
+                name: patient.name,
+                tcNo: patient.tcNo ?? "",
+                birthDate: patient.birthDate ?? "",
+                gender: patient.gender ?? "",
+                phone: patient.phone ?? "",
+                email: patient.email ?? "",
+                emergencyContactName: patient.emergencyContactName ?? "",
+                emergencyContactPhone: patient.emergencyContactPhone ?? "",
+                referringPhysician: patient.referringPhysician ?? "",
+                complaint: patient.complaint ?? "",
+                findings: patient.findings ?? "",
+                notes: patient.notes ?? "",
+              }}
             />
             <Link
               href={`/admin/randevular/yeni?hasta=${id}`}
@@ -102,11 +122,25 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
 
           <Card className="p-5">
             <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-              <NotebookPen className="size-4 text-slate-400" aria-hidden="true" /> Notlar
+              <NotebookPen className="size-4 text-slate-400" aria-hidden="true" /> Kimlik ve Klinik Bilgiler
             </h2>
-            <p className="mt-3 text-sm whitespace-pre-wrap text-slate-600">
-              {patient.notes || "Bu hasta için not eklenmemiş."}
-            </p>
+            <dl className="mt-4 space-y-3 text-sm">
+              {[
+                ["T.C. Kimlik No", patient.tcNo],
+                ["Doğum Tarihi", patient.birthDate ? `${formatDateLong(patient.birthDate)} (${ageOf(patient.birthDate)} yaş)` : undefined],
+                ["Cinsiyet", patient.gender ? GENDER_LABELS[patient.gender] : undefined],
+                ["Acil Durum Kişisi", [patient.emergencyContactName, patient.emergencyContactPhone].filter(Boolean).join(" · ") || undefined],
+                ["Yönlendiren Hekim", patient.referringPhysician],
+                ["Şikâyet", patient.complaint],
+                ["Bulgular", patient.findings],
+                ["Notlar", patient.notes],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-xs font-medium text-slate-500">{label}</dt>
+                  <dd className={`mt-0.5 whitespace-pre-wrap ${value ? "text-slate-900" : "text-slate-400"}`}>{value || "Belirtilmemiş"}</dd>
+                </div>
+              ))}
+            </dl>
           </Card>
         </div>
 

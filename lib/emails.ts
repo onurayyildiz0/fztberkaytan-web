@@ -110,7 +110,7 @@ export async function sendAppointmentRequestEmails(appointment: EmailAppointment
             ["E-posta", patient.email || "-"],
             ["Telefon", patient.phone || "-"],
             ...appointmentRows(appointment),
-            ["Not", appointment.notes || "-"],
+            ["Şikâyet", appointment.notes || "-"],
           ])}
           ${button(`${baseUrl()}/admin`, "Panelde Görüntüle")}`,
         ),
@@ -303,5 +303,62 @@ export async function sendPasswordResetEmail(user: EmailPatient, link: string, t
        <p style="margin-top:24px;font-size:13px;color:#64748b">Bu bağlantı ${ttlMinutes} dakika geçerlidir ve yalnızca bir kez kullanılabilir. Bu talebi siz yapmadıysanız bu e-postayı dikkate almayın; şifreniz değişmez.</p>`,
     ),
     text: `Merhaba ${user.name},\n\nYeni şifre belirlemek için bağlantıyı açın:\n${link}\n\nBağlantı ${ttlMinutes} dakika geçerlidir. Bu talebi siz yapmadıysanız dikkate almayın.`,
+  });
+}
+
+/** Fizyoterapist yeni tarih önerdiğinde hastaya: panelden kabul/ret istenir */
+export async function sendRescheduleProposalEmail(
+  previous: { date: string; timeSlot: string },
+  proposed: EmailAppointment,
+  patient: OptionalEmailPatient,
+) {
+  if (!patient.email) return;
+  await sendEmail({
+    to: patient.email,
+    subject: "Randevunuz için yeni tarih önerisi",
+    html: layout(
+      "Randevunuz için yeni bir tarih önerildi",
+      `<p>Merhaba ${escapeHtml(patient.name)},</p>
+       <p>Mevcut randevunuz zorunlu bir nedenle gerçekleştirilemeyecek. Size aşağıdaki yeni tarihi öneriyoruz. Öneriyi hasta panelinizden kabul edebilir veya reddedebilirsiniz; yeni tarih ancak sizin onayınızla kesinleşir.</p>
+       ${detailsTable([
+         ["Hizmet", proposed.serviceName],
+         ["Mevcut randevu", `${formatDateLong(previous.date)} ${previous.timeSlot}`],
+         ["Önerilen tarih", formatDateLong(proposed.date)],
+         ["Önerilen saat", proposed.timeSlot],
+       ])}
+       ${button(`${baseUrl()}/hasta-paneli/randevularim`, "Öneriyi Yanıtla")}
+       <p style="margin-top:24px;font-size:13px;color:#64748b">Sorularınız için ${escapeHtml(siteConfig.phoneDisplay)} numarasından bize ulaşabilirsiniz.</p>`,
+    ),
+    text: `Merhaba ${patient.name},\n\nRandevunuz için yeni bir tarih önerildi.\nMevcut: ${formatDateLong(previous.date)} ${previous.timeSlot}\nÖnerilen: ${formatDateLong(proposed.date)} ${proposed.timeSlot}\nHizmet: ${proposed.serviceName}\n\nÖneriyi hasta panelinizden kabul edebilir veya reddedebilirsiniz: ${baseUrl()}/hasta-paneli/randevularim`,
+  });
+}
+
+/** Hasta öneriyi kabul/ret ettiğinde fizyoterapiste bilgi */
+export async function sendProposalAnsweredEmail(
+  accepted: boolean,
+  previous: { date: string; timeSlot: string },
+  proposed: { date: string; timeSlot: string },
+  service: string,
+  patient: EmailPatient,
+) {
+  const adminEmail = getAdminEmail();
+  if (!adminEmail) return;
+  const title = accepted ? "Hasta yeni tarihi kabul etti" : "Hasta yeni tarihi reddetti (randevu iptal)";
+  await sendEmail({
+    to: adminEmail,
+    subject: `${title}: ${patient.name}`,
+    html: layout(
+      title,
+      `${detailsTable([
+        ["Hasta", patient.name],
+        ["E-posta", patient.email],
+        ["Hizmet", service],
+        ["Eski tarih", `${formatDateLong(previous.date)} ${previous.timeSlot}`],
+        ["Önerilen tarih", `${formatDateLong(proposed.date)} ${proposed.timeSlot}`],
+        ["Sonuç", accepted ? "Randevu yeni tarihe taşındı" : "Randevu iptal edildi"],
+      ])}
+      ${button(`${baseUrl()}/admin/takvim?tarih=${accepted ? proposed.date : previous.date}`, "Takvimde Gör")}`,
+    ),
+    text: `${title}\nHasta: ${patient.name}\nHizmet: ${service}\nEski: ${formatDateLong(previous.date)} ${previous.timeSlot}\nÖnerilen: ${formatDateLong(proposed.date)} ${proposed.timeSlot}`,
   });
 }

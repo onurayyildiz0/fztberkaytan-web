@@ -26,16 +26,23 @@ export const phoneField = z
   .optional()
   .or(z.literal("").transform(() => undefined));
 
+/** Üyelikte telefon zorunludur (randevu iletişimi için) */
+export const requiredPhoneField = z
+  .string()
+  .trim()
+  .min(1, "Telefon numarası zorunludur.")
+  .regex(/^\+?[0-9\s()-]{10,20}$/, "Geçerli bir telefon numarası girin.");
+
 const emailField = z.string().trim().toLowerCase().email("Geçerli bir e-posta adresi girin.").max(254);
 
 /** Yasal metinlerin (KVKK aydınlatma + kullanım koşulları) sürümü; metin değişince güncellenir */
-export const CONSENT_VERSION = "2026-10-19";
+export const CONSENT_VERSION = "2026-10-25";
 
 export const registerSchema = z.object({
   name: nameField,
   email: emailField,
   password: passwordField,
-  phone: phoneField,
+  phone: requiredPhoneField,
   consent: z.literal(true, "Devam etmek için KVKK Aydınlatma Metni'ni okuduğunuzu ve Kullanım Koşulları'nı kabul ettiğinizi onaylayın."),
 });
 
@@ -58,7 +65,7 @@ export const resetPasswordFormSchema = z
   .object({ password: passwordField, confirmPassword: z.string() })
   .refine((d) => d.password === d.confirmPassword, { message: "Şifreler eşleşmiyor.", path: ["confirmPassword"] });
 
-export const profileSchema = z.object({ name: nameField, phone: phoneField });
+export const profileSchema = z.object({ name: nameField, phone: requiredPhoneField });
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Mevcut şifrenizi girin.").max(128),

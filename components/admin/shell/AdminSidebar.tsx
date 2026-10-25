@@ -41,7 +41,7 @@ export const ADMIN_NAV: NavItem[] = [
       { label: "Tüm Randevular", href: "/admin/randevular" },
       { label: "Bekleyen Talepler", href: "/admin/randevular?durum=pending" },
       { label: "Yeni Randevu", href: "/admin/randevular/yeni" },
-      { label: "Çalışma Saatleri", href: "/admin/calisma-saatleri" },
+      { label: "Müsaitlik (Google)", href: "/admin/musaitlik" },
     ],
   },
   {

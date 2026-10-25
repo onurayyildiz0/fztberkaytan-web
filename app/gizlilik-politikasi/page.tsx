@@ -1,241 +1,137 @@
 import LegalPage, { legalMetadata, type LegalSection } from "@/components/legal/LegalPage";
-import { ContactCard, InlineLink, List, Note, Term } from "@/components/legal/prose";
-import { siteConfig } from "@/lib/site";
+import { ContactCard, InlineLink, Note } from "@/components/legal/prose";
+import { LEGAL_LAST_UPDATED } from "@/lib/legal";
 
 const PATH = "/gizlilik-politikasi";
-const DOMAIN = new URL(siteConfig.url).host.replace(/^www\./, "");
 
 export const metadata = legalMetadata({
   title: "Gizlilik Politikası",
-  description: `${DOMAIN} web sitesi gizlilik politikası, veri güvenliği ve kişisel bilgilerin kullanımı hakkında bilgilendirme.`,
+  description: "fztberkaytan.com web sitesi ve online randevu sisteminin gizlilik uygulamaları, veri güvenliği ve kişisel bilgilerin kullanımı.",
   path: PATH,
 });
 
 const sections: LegalSection[] = [
   {
-    id: "toplanabilecek-bilgiler",
-    title: "Toplanabilecek Bilgiler",
-    content: (
-      <>
-        <p>Web sitemizi kullandığınızda aşağıdaki bilgiler işlenebilir:</p>
-        <List
-          items={[
-            <><Term>Kimlik ve iletişim bilgileri:</Term> Ad, soyad, telefon numarası ve e-posta adresi.</>,
-            <><Term>Hesap bilgileri:</Term> Online randevu için oluşturduğunuz kullanıcı hesabına ait e-posta adresi ve parola. Parolanız geri döndürülemez şekilde şifrelenerek (hash’lenerek) saklanır; tarafımızca görüntülenemez.</>,
-            <><Term>Randevu bilgileri:</Term> Seçilen hizmet, randevu tarihi ve saati, randevu durumu ile randevu sırasında tarafınızca iletilen kısa notlar.</>,
-            <><Term>Adres bilgileri:</Term> Yalnızca evde fizyoterapi hizmeti talep edilmesi halinde hizmetin gerçekleştirileceği adres bilgileri.</>,
-            <><Term>Teknik bilgiler:</Term> IP adresi, kullanılan cihaz ve tarayıcı türü, siteye erişim zamanı, ziyaret edilen sayfalar ve çerezler aracılığıyla elde edilebilen teknik kullanım bilgileri.</>,
-          ]}
-        />
-        <Note>
-          Randevu notu veya iletişim alanları üzerinden sağlık durumunuza ilişkin bilgi paylaşmanız halinde bu bilgiler
-          özel nitelikli kişisel veri niteliğinde olabilir. Bu nedenle gerekli olmayan sağlık bilgilerini web formu
-          üzerinden paylaşmamanızı öneririz.
-        </Note>
-      </>
-    ),
-  },
-  {
-    id: "toplanma-sekli",
-    title: "Bilgiler Nasıl Toplanır?",
+    id: "kapsam",
+    title: "Kapsam ve işletmeci",
     content: (
       <p>
-        Bilgileriniz; web sitesindeki üyelik, randevu ve iletişim formları, hasta paneli üzerinden sizin tarafınızdan
-        gerçekleştirilen randevu işlemleri, telefon veya e-posta yoluyla iletişim kurulması ve web sitesinin teknik
-        çalışmasını sağlayan çerezler ve benzeri teknolojiler aracılığıyla toplanabilir.
+        Bu politika, Fizyoterapist Berkay TAN tarafından işletilen fztberkaytan.com internet sitesinin ve online randevu
+        sisteminin gizlilik uygulamalarını açıklar. Faaliyet yeri Özel Sağlık Meslek Hizmet Birimi – Fizyoterapist Berkay
+        TAN’dır. Veri kategorileri, hukuki sebepler, alıcılar ve haklarınız hakkında ayrıntılı bilgi{" "}
+        <InlineLink href="/kvkk">KVKK Aydınlatma Metni</InlineLink>’nde yer alır.
       </p>
     ),
   },
   {
-    id: "kullanim-amaclari",
-    title: "Bilgiler Hangi Amaçlarla Kullanılır?",
+    id: "toplanan-bilgiler",
+    title: "Toplanan bilgiler ve kullanım",
     content: (
       <>
         <p>
-          Toplanan bilgiler; randevu taleplerinin oluşturulması ve yönetilmesi, randevu durumuna ilişkin e-posta
-          bildirimlerinin ve randevu hatırlatmalarının gönderilmesi, randevuların fizyoterapistin takviminde planlanması, sizinle iletişim kurulması, talep edilen fizyoterapi hizmetinin planlanması,
-          evde hizmet talep edilmesi halinde adresin belirlenmesi, kullanıcı hesabının güvenliğinin sağlanması, web
-          sitesinin güvenli ve düzgün şekilde çalışmasının sağlanması, kullanıcı deneyiminin geliştirilmesi ve yasal
-          yükümlülüklerin yerine getirilmesi amacıyla kullanılabilir.
+          Üyelik ve randevu işlemlerinde ad-soyad, telefon, e-posta, hesap/kimlik doğrulama bilgileri, seçilen hizmet, randevu
+          tarih-saati, durum ve iletişim kayıtları işlenir. Sitenin çalışması ve güvenliği için gerekli teknik kayıtlar ve
+          çerez verileri de işlenir.
         </p>
-        <p>Kişisel bilgileriniz, açık bir hukuki dayanak bulunmadıkça amaç dışı kullanılmaz.</p>
+        <p>
+          Bilgiler; randevu talebinin alınması, değerlendirilmesi, onay/ret/iptal ve değişiklik bildirimlerinin gönderilmesi,
+          hatırlatmalar, takvim planlaması, kullanıcı taleplerinin yanıtlanması, güvenlik ve hukuki yükümlülüklerin yerine
+          getirilmesi için kullanılır. Randevu e-postaları işlem bilgilendirmesidir; reklam veya pazarlama izni yerine geçmez.
+        </p>
+        <Note>
+          Randevu formunda ad, soyad, e-posta adresi, telefon numarası ve şikâyet açıklaması alınır. Şikâyet açıklamasındaki
+          sağlık bilgileri özel nitelikli kişisel veri olarak, sağlık hizmetinin planlanması ve yürütülmesi için gerekli
+          kapsamla sınırlı işlenir. Başvuru nedeninizi kısa yazınız; gereksiz ayrıntı ve üçüncü kişilere ait sağlık bilgisi
+          paylaşmayınız.
+        </Note>
+        <p>
+          Seçilen hizmetin sağlık durumunu açıklaması hâlinde bu bilgi ayrıca özel nitelikli veri bakımından değerlendirilir.
+          Klinik hizmet sırasında gerekli sağlık bilgileri, o sürece ilişkin ayrı aydınlatma kapsamında alınır.
+        </p>
       </>
     ),
   },
   {
-    id: "altyapi",
-    title: "Web Sitesi Altyapısı ve Hizmet Sağlayıcıları",
+    id: "altyapi-paylasim",
+    title: "Altyapı ve paylaşım",
     content: (
       <>
         <p>
-          Web sitemiz ve online randevu sistemimiz, tarafımıza özel olarak geliştirilmiş bir yazılım ile
-          çalışmaktadır. Sitenin işletilmesi için aşağıdaki hizmet sağlayıcılardan yararlanılmaktadır:
+          Online sistemde hosting hizmeti, hesap ve randevu kayıtları için MongoDB Atlas, işlem e-postaları için Resend ve
+          randevu planlaması için Google Takvim kullanılmaktadır. Şikâyet açıklaması yönetim panelinde görüntülenir veya
+          fizyoterapiste e-posta ile iletilir; randevu kaydıyla birlikte Google Takvim’e de aktarılır. Sağlayıcılar, veri
+          kapsamları ve yurt dışı aktarım açıklaması <InlineLink href="/kvkk">KVKK Aydınlatma Metni</InlineLink>’nde
+          belirtilir. Gerekli yetkilendirme ve güvenlik koşulları gözetilir.
         </p>
-        <List
-          items={[
-            <><Term>Barındırma (hosting):</Term> Web sitesinin yayınlanması ve güvenli şekilde erişilebilir olması için kullanılan sunucu hizmeti.</>,
-            <><Term>Veritabanı (MongoDB Atlas):</Term> Kullanıcı hesabı ve randevu kayıtlarının saklandığı bulut veritabanı hizmeti.</>,
-            <><Term>E-posta gönderimi (Resend):</Term> Randevu talebi, onay, ret, tarih değişikliği, iptal ve hatırlatma bildirimlerinin e-posta ile iletilmesi.</>,
-            <><Term>Takvim (Google Takvim):</Term> Onaylanan randevuların fizyoterapistin iş takvimine aktarılması. Takvime yalnızca ad soyad, hizmet, randevu saati ve telefon numarası aktarılır; randevu notlarınız aktarılmaz.</>,
-          ]}
-        />
         <p>
-          Bu hizmet sağlayıcılar bilgilerinize yalnızca hizmetin sunulması için gerekli olduğu ölçüde erişebilir.
-          Kişisel verilerin yurt dışına aktarılmasının söz konusu olduğu durumlarda işlemler, uygulanabilir mevzuat ve
-          KVKK’nın yurt dışına veri aktarımına ilişkin 9. maddesi hükümleri çerçevesinde yürütülür.
+          Kişisel bilgiler satılmaz. Hizmetin yürütülmesi için gereken sağlayıcılar ve kanuni şartlarla yetkili merciler
+          dışında, amaçla ilgisiz ticari paylaşım yapılmaz. Sağlayıcı kullanılması, veri sorumlusunun kanuni yükümlülüklerini
+          ortadan kaldırmaz.
         </p>
       </>
     ),
   },
   {
     id: "cerezler",
-    title: "Çerezler",
+    title: "Çerezler ve harici hizmetler",
     content: (
       <>
         <p>
-          Web sitemiz, sitenin ve randevu sisteminin düzgün ve güvenli şekilde çalışması için yalnızca zorunlu
-          çerezler kullanmaktadır. Bu çerezler; hesabınıza giriş yapmanızı, oturumunuzun güvenli şekilde
-          sürdürülmesini ve formların sahte isteklere karşı korunmasını sağlar. Sitemizde şu anda analitik, reklam veya
-          pazarlama amaçlı çerez kullanılmamaktadır.
+          Oturum ve güvenlik çerezlerinin amaç ve süreleri <InlineLink href="/cerez-politikasi">Çerez Politikası</InlineLink>
+          ’nda açıklanır. Üçüncü taraf harita veya benzeri içeriklerin bulunması hâlinde bunlara ilişkin veri işleme de aynı
+          politikada açıklanır. Rıza gerektiren çerezler önceden rıza alınmadan etkinleştirilmez; rıza tercihleri
+          değiştirilebilir.
         </p>
         <p>
-          İleride zorunlu olmayan çerezlerin kullanılması halinde, bu çerezler yalnızca açık rızanız alınarak
-          kullanılacak ve tercihlerinizi yönetebileceğiniz bir çerez bildirimi sunulacaktır.
-        </p>
-        <p>
-          Çerezler hakkında daha ayrıntılı bilgi için{" "}
-          <InlineLink href="/cerez-politikasi">Çerez Politikası</InlineLink> sayfamızı inceleyebilirsiniz.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "paylasim",
-    title: "Bilgilerin Paylaşılması",
-    content: (
-      <>
-        <p>Kişisel bilgileriniz satılmaz veya ilgisiz üçüncü kişilere ticari amaçlarla aktarılmaz.</p>
-        <p>
-          Ancak web sitesinin ve randevu sisteminin çalışması için gerekli olması halinde yukarıda belirtilen bilişim
-          ve altyapı hizmeti sağlayıcılarıyla veya yasal bir zorunluluk bulunması halinde yetkili kamu kurum ve
-          kuruluşlarıyla mevzuatın izin verdiği ölçüde paylaşım yapılabilir.
+          Dış bağlantıya tıklayarak başka bir platforma geçtiğinizde o platformun kendi koşulları geçerlidir. Sitemize
+          yerleştirdiğimiz entegrasyonlar nedeniyle doğan aydınlatma, veri güvenliği ve aktarım yükümlülüklerimiz saklıdır.
         </p>
       </>
     ),
   },
   {
     id: "guvenlik",
-    title: "Veri Güvenliği",
+    title: "Güvenlik ve hesap kullanımı",
     content: (
       <>
         <p>
-          Kişisel bilgilerin yetkisiz erişim, kayıp, kötüye kullanım veya hukuka aykırı şekilde açıklanmasına karşı
-          korunması amacıyla makul teknik ve idari tedbirlerin uygulanmasına özen gösterilir. Bu kapsamda;
+          Kişisel verilerin hukuka aykırı işlenmesini, yetkisiz erişimi ve kaybını önlemek için uygun güvenlik düzeyini
+          sağlamaya yönelik gerekli teknik ve idari tedbirler alınır. Erişimler görev ve hizmet gereksinimleriyle
+          sınırlandırılır. Parolanızı üçüncü kişilerle paylaşmayınız; hesabınızda şüpheli işlem fark ederseniz bizimle
+          iletişime geçiniz.
         </p>
-        <List
-          items={[
-            "site ile tarayıcınız arasındaki veri iletimi SSL/TLS ile şifrelenir,",
-            "parolalar geri döndürülemez şekilde şifrelenerek saklanır,",
-            "randevu bilgilerinize yalnızca sizin ve yetkili fizyoterapistin erişebilmesi sağlanır,",
-            "yönetim paneline yalnızca yetkili kişi erişebilir.",
-          ]}
-        />
         <p>
-          Bununla birlikte internet üzerinden gerçekleştirilen hiçbir veri aktarım yönteminin tamamen risksiz olmadığı
-          dikkate alınmalıdır. Parolanızı kimseyle paylaşmamanızı öneririz.
+          İnternet sistemlerinde mutlak risksizlik garantisi verilemez. Bu açıklama, veri güvenliği yükümlülüklerimizi veya
+          mevzuattan doğan sorumluluğumuzu ortadan kaldırmaz.
         </p>
       </>
     ),
   },
   {
-    id: "saklama",
-    title: "Verilerin Saklanması",
+    id: "saklama-haklar",
+    title: "Saklama, haklar ve güncellemeler",
     content: (
       <>
         <p>
-          Kişisel bilgiler, toplanma amaçlarının gerektirdiği süre boyunca ve uygulanabilir mevzuatta öngörülen
-          saklama süreleri kapsamında muhafaza edilir.
+          Veriler amaçla ve kanuni sürelerle sınırlı tutulur; işleme şartları sona erdiğinde mevzuata uygun imha işlemleri
+          uygulanır. Haklarınız ve başvuru yöntemi <InlineLink href="/kvkk">KVKK Aydınlatma Metni</InlineLink>’nde
+          açıklanmıştır.
         </p>
         <p>
-          İşleme amacı ve hukuki saklama yükümlülüğü sona erdiğinde veriler mevzuata uygun şekilde silinir, yok edilir
-          veya anonim hale getirilir.
+          Politika, hizmet ve mevzuat değişikliklerine göre güncellenebilir. Yeni işleme amaçları için gereken aydınlatma
+          işlem başlamadan yapılır; açık rıza gerekiyorsa ayrıca alınır. Politikanın güncellenmesi veya sitenin kullanılmaya
+          devam edilmesi kendiliğinden açık rıza oluşturmaz.
         </p>
-      </>
-    ),
-  },
-  {
-    id: "haklariniz",
-    title: "Haklarınız",
-    content: (
-      <p>
-        Kişisel verilerinizle ilgili haklarınız ve bu hakların nasıl kullanılacağı konusunda ayrıntılı bilgi için{" "}
-        <InlineLink href="/kvkk">KVKK Aydınlatma Metni</InlineLink> sayfamızı inceleyebilirsiniz.
-      </p>
-    ),
-  },
-  {
-    id: "ucuncu-taraf-baglantilar",
-    title: "Üçüncü Taraf Bağlantılar",
-    content: (
-      <>
-        <p>
-          Web sitesinde Google Haritalar, WhatsApp veya başka üçüncü taraf internet sitelerine ve hizmetlerine
-          yönlendiren bağlantılar ile gömülü içerikler bulunabilir.
-        </p>
-        <p>
-          Bu bağlantılar üzerinden ziyaret edilen üçüncü taraf sitelerin gizlilik uygulamaları kendi politikalarına
-          tabidir. {siteConfig.name}, üçüncü taraf sitelerin veri işleme uygulamalarından sorumlu değildir.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "degisiklikler",
-    title: "Politika Değişiklikleri",
-    content: (
-      <>
-        <p>
-          Bu Gizlilik Politikası; mevzuat, web sitesinin özellikleri veya kullanılan hizmetlerin değişmesi halinde
-          güncellenebilir.
-        </p>
-        <p>Güncel politika her zaman {DOMAIN} üzerinden yayımlanır.</p>
       </>
     ),
   },
   {
     id: "iletisim",
     title: "İletişim",
-    content: (
-      <>
-        <p>Gizlilik uygulamalarımız veya kişisel verileriniz hakkında bizimle iletişime geçebilirsiniz:</p>
-        <ContactCard title="İletişim" />
-      </>
-    ),
+    content: <ContactCard title="İletişim" />,
   },
 ];
 
 export default function PrivacyPolicyPage() {
-  return (
-    <LegalPage
-      title="Gizlilik Politikası"
-      lastUpdated="19 Ekim 2026"
-      intro={
-        <>
-          <p>
-            Bu Gizlilik Politikası, {siteConfig.name} – {siteConfig.unit} tarafından işletilen {DOMAIN} internet
-            sitesini ziyaret ettiğinizde bilgilerinizin nasıl toplandığı, kullanıldığı ve korunduğu hakkında bilgi
-            vermek amacıyla hazırlanmıştır.
-          </p>
-          <p>
-            Bu politika, web sitesinin kullanımıyla ilgili genel gizlilik uygulamalarını açıklamaktadır. Kişisel
-            verilerin 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamındaki işlenmesine ilişkin
-            ayrıntılı bilgi için ayrıca <InlineLink href="/kvkk">KVKK Aydınlatma Metni</InlineLink> sayfamızı
-            inceleyebilirsiniz.
-          </p>
-        </>
-      }
-      sections={sections}
-      currentPath={PATH}
-    />
-  );
+  return <LegalPage title="Gizlilik Politikası" lastUpdated={LEGAL_LAST_UPDATED} sections={sections} currentPath={PATH} />;
 }

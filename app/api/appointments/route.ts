@@ -1,18 +1,15 @@
 import { NextResponse, after } from "next/server";
-import {
-  ACTIVE_STATUSES,
-  MAX_ACTIVE_APPOINTMENTS_PER_PATIENT,
-  SLOT_DURATION_MINUTES,
-} from "@/lib/appointments";
+import { ACTIVE_STATUSES, MAX_ACTIVE_APPOINTMENTS_PER_PATIENT } from "@/lib/appointments";
 import { requirePatientWithCardApi } from "@/lib/auth/guards";
-import { getAvailableSlots, isBookableDate } from "@/lib/data/appointments";
-import { keyToDate, slotLabel, todayKey } from "@/lib/dates";
+import { getAvailableStarts, isBookableDate, makeTimeSlot, rollbackIfOverlapping } from "@/lib/data/appointments";
+import { keyToDate, todayKey } from "@/lib/dates";
 import { sendAppointmentRequestEmails } from "@/lib/emails";
 import { isDuplicateKeyError, jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
 import { LIMITS, consumeRateLimit, tooManyRequestsMessage } from "@/lib/rate-limit";
 import { toFieldErrors } from "@/lib/validations/auth";
 import { createAppointmentSchema } from "@/lib/validations/appointments";
+import { serviceDurationMinutes, serviceLabel } from "@/lib/services";
 import Appointment from "@/models/Appointment";
 
 export const runtime = "nodejs";
@@ -33,7 +30,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return jsonError("Lütfen randevu bilgilerini kontrol edin.", 400, { errors: toFieldErrors(parsed.error) });
   }
-  const { serviceName, date, time, notes } = parsed.data;
+  const { serviceName, serviceOption, date, time, notes } = parsed.data;
+  const durationMinutes = serviceDurationMinutes(serviceName, serviceOption);
 
   if (!isBookableDate(date)) {
     return jsonError("Seçilen tarih için randevu alınamaz.", 400);
@@ -55,27 +53,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const available = await getAvailableSlots(date);
+    const available = await getAvailableStarts(date, durationMinutes);
     if (!available.includes(time)) {
       return jsonError("Seçtiğiniz saat artık müsait değil. Lütfen başka bir saat seçin.", 409, {
         code: "SLOT_TAKEN",
       });
     }
 
-    const timeSlot = slotLabel(time, SLOT_DURATION_MINUTES);
+    const timeSlot = makeTimeSlot(time, durationMinutes);
     const appointment = await Appointment.create({
       patientId,
       serviceName,
+      serviceOption,
+      durationMinutes,
       date: keyToDate(date),
       timeSlot,
       notes,
       status: "pending",
     });
+    // Eşzamanlı başka bir talep aynı aralığı aldıysa bu kayıt geri alınır
+    if (await rollbackIfOverlapping(appointment._id, date, timeSlot)) {
+      return jsonError("Seçtiğiniz saat artık müsait değil. Lütfen başka bir saat seçin.", 409, { code: "SLOT_TAKEN" });
+    }
 
     // E-postalar yanıt döndükten sonra gönderilir; hata olsa da randevu oluşmuş olur
     after(() =>
       sendAppointmentRequestEmails(
-        { serviceName, date, timeSlot, notes },
+        { serviceName: serviceLabel(serviceName, serviceOption), date, timeSlot, notes },
         { name: patient.name, email: session.user.email ?? patient.email ?? null, phone: patient.phone },
       ),
     );

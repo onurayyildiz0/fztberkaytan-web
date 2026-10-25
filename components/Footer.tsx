@@ -1,10 +1,12 @@
 import Link from "next/link";
+import FreshnessBadge from "@/components/FreshnessBadge";
 import { Activity, Mail, MapPin, Phone } from "lucide-react";
 import { legalLinks, links, navItems, siteConfig } from "@/lib/site";
 
 export default function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-300">
+      <FreshnessBadge />
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
           <div className="flex items-center gap-3">

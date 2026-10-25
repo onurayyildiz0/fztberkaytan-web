@@ -6,6 +6,7 @@ import { addDays, appointmentStartsAt, dateToKey, keyToDate, todayKey } from "@/
 import { sendReminderEmail } from "@/lib/emails";
 import { isGoogleCalendarConfigured } from "@/lib/google-calendar";
 import { connectDB } from "@/lib/mongodb";
+import { serviceLabel } from "@/lib/services";
 import Appointment from "@/models/Appointment";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ function authorized(request: Request): boolean {
  * 1) Saati geçmiş ama hâlâ beklemede kalan talepleri düşürür.
  * 2) Yarınki onaylı randevular için hatırlatma e-postası gönderir.
  * 3) Google Takvim'e eklenememiş onaylı randevuları tekrar dener.
+ * 4) Saati geçmiş ve yanıtlanmamış erteleme önerilerini kaldırır.
  * Header: Authorization: Bearer <CRON_SECRET>
  */
 export async function GET(request: Request) {
@@ -74,7 +76,7 @@ export async function GET(request: Request) {
       continue;
     }
     await sendReminderEmail(
-      { serviceName: claimed.serviceName, date: tomorrow, timeSlot: claimed.timeSlot },
+      { serviceName: serviceLabel(claimed.serviceName, claimed.serviceOption), date: tomorrow, timeSlot: claimed.timeSlot },
       { name: patient.name, email: patient.email },
       !!patient.userId,
     );
@@ -98,5 +100,29 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, ranAt: now.toISOString(), expired, reminded, skippedNoEmail, calendarRetried });
+  // 4) Yanıtlanmamış ve önerilen saati geçmiş erteleme önerileri
+  const staleProposals = await Appointment.find({ proposedDate: { $ne: null, $lte: keyToDate(today) } })
+    .select("proposedDate proposedTimeSlot")
+    .lean();
+  const staleIds = staleProposals
+    .filter((a) => a.proposedDate && a.proposedTimeSlot && appointmentStartsAt(dateToKey(a.proposedDate), a.proposedTimeSlot) <= now)
+    .map((a) => a._id);
+  const proposalsExpired = staleIds.length
+    ? (
+        await Appointment.updateMany(
+          { _id: { $in: staleIds } },
+          { $set: { proposedDate: null, proposedTimeSlot: null, proposedAt: null } },
+        )
+      ).modifiedCount
+    : 0;
+
+  return NextResponse.json({
+    ok: true,
+    ranAt: now.toISOString(),
+    expired,
+    reminded,
+    skippedNoEmail,
+    calendarRetried,
+    proposalsExpired,
+  });
 }

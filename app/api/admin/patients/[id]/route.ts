@@ -20,7 +20,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!parsed.success) {
     return jsonError("Lütfen form alanlarını kontrol edin.", 400, { errors: toFieldErrors(parsed.error) });
   }
-  const { name, phone, email, notes } = parsed.data;
+  const { name, ...rest } = parsed.data;
+  const { email, tcNo } = rest;
 
   try {
     await connectDB();
@@ -32,9 +33,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         });
       }
     }
+    if (tcNo) {
+      const sameTc = await Patient.findOne({ tcNo, _id: { $ne: id } }).select("name").lean();
+      if (sameTc) {
+        return jsonError(`Bu T.C. kimlik numarası başka bir hastaya ait: ${sameTc.name}`, 409, {
+          errors: { tcNo: "Bu T.C. kimlik numarası başka bir hastaya ait." },
+        });
+      }
+    }
+    // Boş bırakılan alanlar karttan silinir
     const set: Record<string, string> = { name };
     const unset: Record<string, 1> = {};
-    for (const [key, value] of Object.entries({ phone, email, notes })) {
+    for (const [key, value] of Object.entries(rest)) {
       if (value) set[key] = value;
       else unset[key] = 1;
     }

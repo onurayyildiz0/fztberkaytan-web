@@ -1,5 +1,6 @@
 import { CalendarDays, CalendarPlus, Clock, MessageSquareText, Phone } from "lucide-react";
 import CancelAppointmentButton from "@/components/patient/CancelAppointmentButton";
+import ProposalActions from "@/components/patient/ProposalActions";
 import { StatusBadge } from "@/components/panel/ui";
 import {
   ACTIVE_STATUSES,
@@ -9,6 +10,7 @@ import {
 } from "@/lib/appointments";
 import { googleCalendarTemplateUrl } from "@/lib/calendar-links";
 import { formatDateLong } from "@/lib/dates";
+import { serviceLabel } from "@/lib/services";
 import { links, siteConfig } from "@/lib/site";
 
 export default function PatientAppointmentItem({
@@ -27,7 +29,7 @@ export default function PatientAppointmentItem({
     <li className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold text-slate-900">{a.serviceName}</p>
+          <p className="font-semibold text-slate-900">{serviceLabel(a.serviceName, a.serviceOption)}</p>
           <StatusBadge status={a.status} />
         </div>
         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
@@ -46,7 +48,8 @@ export default function PatientAppointmentItem({
             <span className="line-clamp-2">{a.notes}</span>
           </p>
         )}
-        {a.status === "approved" && isUpcoming && (
+        {a.proposal && isActive && <ProposalActions appointmentId={a.id} proposal={a.proposal} />}
+        {a.status === "approved" && isUpcoming && !a.proposal && (
           <a
             href={googleCalendarTemplateUrl(a)}
             target="_blank"

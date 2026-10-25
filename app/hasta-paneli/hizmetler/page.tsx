@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CalendarPlus, Clock } from "lucide-react";
 import { Card, PageHeader } from "@/components/panel/ui";
 import { SERVICE_ICONS } from "@/components/serviceIcons";
-import { SERVICES, formatPrice } from "@/lib/services";
+import { SERVICES, formatPrice, getService } from "@/lib/services";
 import { links, siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Hizmetler ve Fiyatlar" };
@@ -41,6 +41,12 @@ export default function ServicesPage() {
                   </div>
                 </div>
                 <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">{service.description}</p>
+                {getService(service.name)?.options && (
+                  <p className="mt-3 text-sm text-slate-600">
+                    <span className="font-medium text-slate-800">Uygulamalar:</span>{" "}
+                    {getService(service.name)!.options!.map((o) => o.name).join(", ")}
+                  </p>
+                )}
                 <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-medium text-slate-500">Seans ücreti</p>

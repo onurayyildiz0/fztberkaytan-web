@@ -7,6 +7,7 @@ import { dateToKey } from "@/lib/dates";
 import { sendStatusUpdateEmail } from "@/lib/emails";
 import { isObjectId, jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
+import { serviceLabel } from "@/lib/services";
 import { updateAppointmentSchema } from "@/lib/validations/appointments";
 import Appointment from "@/models/Appointment";
 
@@ -44,6 +45,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       set.status = status;
       if (status === "cancelled") set.cancelledBy = "admin";
+      // Sonlanan randevuda bekleyen erteleme önerisi geçersizdir
+      if (status !== "approved") Object.assign(set, { proposedDate: null, proposedTimeSlot: null, proposedAt: null });
     }
 
     // Durum okunduktan sonra başka bir işlem değiştirdiyse güncelleme yapılmaz
@@ -58,7 +61,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         await syncAppointmentToGoogle(id);
         if (patient) {
           await sendStatusUpdateEmail(
-            { serviceName: updated.serviceName, date: dateToKey(updated.date), timeSlot: updated.timeSlot },
+            { serviceName: serviceLabel(updated.serviceName, updated.serviceOption), date: dateToKey(updated.date), timeSlot: updated.timeSlot },
             { name: patient.name, email: patient.email ?? null },
             status,
           );

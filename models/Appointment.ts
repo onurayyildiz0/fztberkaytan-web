@@ -13,6 +13,10 @@ import { SERVICE_NAMES, type ServiceName } from "@/lib/services";
 export interface IAppointment {
   patientId: Types.ObjectId;
   serviceName: ServiceName;
+  /** Alt hizmet (ör. Fizyoterapi → Manuel Terapi) */
+  serviceOption?: string | null;
+  /** Seans süresi (dakika); eski kayıtlarda 60 */
+  durationMinutes: number;
   /** Takvim günü, UTC gece yarısı olarak (bkz. lib/dates.ts) */
   date: Date;
   /** Ör. "10:00 - 11:00" */
@@ -29,6 +33,10 @@ export interface IAppointment {
   reminderSentAt?: Date | null;
   /** Google Takvim etkinlik kimliği */
   googleEventId?: string | null;
+  /** Fizyoterapistin önerdiği yeni tarih/saat; hasta kabul edince randevu buraya taşınır */
+  proposedDate?: Date | null;
+  proposedTimeSlot?: string | null;
+  proposedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +48,8 @@ const AppointmentSchema = new Schema<IAppointment>(
     // Hasta kartına (Patient) bağlıdır; giriş hesabına değil
     patientId: { type: Schema.Types.ObjectId, ref: "Patient", required: true, index: true },
     serviceName: { type: String, enum: SERVICE_NAMES, required: true },
+    serviceOption: { type: String, trim: true, maxlength: 100, default: null },
+    durationMinutes: { type: Number, min: 5, max: 480, default: 60 },
     date: { type: Date, required: true },
     timeSlot: { type: String, required: true, trim: true },
     status: { type: String, enum: APPOINTMENT_STATUSES, default: "pending", required: true },
@@ -49,6 +59,9 @@ const AppointmentSchema = new Schema<IAppointment>(
     cancelledBy: { type: String, enum: CANCELLED_BY },
     reminderSentAt: { type: Date, default: null },
     googleEventId: { type: String, default: null },
+    proposedDate: { type: Date, default: null },
+    proposedTimeSlot: { type: String, default: null },
+    proposedAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now, immutable: true },
   },
   { versionKey: false, timestamps: { createdAt: false, updatedAt: true } },
@@ -57,8 +70,8 @@ const AppointmentSchema = new Schema<IAppointment>(
 AppointmentSchema.index({ date: 1 });
 AppointmentSchema.index({ status: 1, date: 1 });
 
-// Çifte rezervasyonu veritabanı seviyesinde engeller:
-// aynı gün + saat için yalnızca bir bekleyen/onaylı/tamamlanmış randevu olabilir.
+// Aynı başlangıç saatine çifte kaydı veritabanı seviyesinde engeller.
+// Farklı sürelerdeki kısmi çakışmalar uygulamada (lib/data/appointments.ts) kontrol edilir.
 AppointmentSchema.index(
   { date: 1, timeSlot: 1 },
   {

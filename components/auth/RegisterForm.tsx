@@ -134,7 +134,7 @@ export default function RegisterForm() {
       />
       <FormField
         id="phone"
-        label="Telefon (isteğe bağlı)"
+        label="Telefon"
         type="tel"
         autoComplete="tel"
         placeholder="05xx xxx xx xx"
@@ -142,6 +142,7 @@ export default function RegisterForm() {
         onChange={(e) => update("phone", e.target.value)}
         error={errors.phone}
         disabled={disabled}
+        required
       />
       <FormField
         id="password"

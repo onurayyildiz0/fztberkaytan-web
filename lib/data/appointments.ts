@@ -2,28 +2,61 @@ import "server-only";
 import { Types } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import {
+  ACTIVE_STATUSES,
+  AVAILABILITY_STEP_MINUTES,
   BOOKING_WINDOW_DAYS,
   SLOT_BLOCKING_STATUSES,
   SLOT_DURATION_MINUTES,
   type AdminAppointmentDTO,
   type AppointmentDTO,
 } from "@/lib/appointments";
-import {
-  addDays,
-  appointmentStartsAt,
-  dateToKey,
-  dayOfWeek,
-  keyToDate,
-  todayKey,
-  type DateKey,
-} from "@/lib/dates";
-import { deleteCalendarEvent, getBusyIntervals, upsertCalendarEvent } from "@/lib/google-calendar";
+import { addDays, appointmentStartsAt, dateToKey, keyToDate, todayKey, type DateKey } from "@/lib/dates";
+import { deleteCalendarEvent, getAvailabilityBlocks, getBusyIntervals, upsertCalendarEvent } from "@/lib/google-calendar";
+import { serviceLabel } from "@/lib/services";
 import { siteConfig } from "@/lib/site";
 import Appointment, { type IAppointment } from "@/models/Appointment";
-import ClosedDay from "@/models/ClosedDay";
-import WorkingHours from "@/models/WorkingHours";
 
-type PopulatedPatient = { _id: Types.ObjectId; name: string; email?: string; phone?: string };
+/* ---------- Zaman aralıkları ---------- */
+
+export type Interval = { start: Date; end: Date };
+
+const MINUTE = 60_000;
+const ISTANBUL_OFFSET_MS = 3 * 60 * MINUTE;
+
+export function overlaps(a: Interval, b: Interval): boolean {
+  return a.start < b.end && a.end > b.start;
+}
+
+/** "10:15 - 11:05" → gerçek başlangıç/bitiş (bitiş başlangıçtan önceyse ertesi gün) */
+export function timeSlotInterval(key: DateKey, timeSlot: string): Interval {
+  const [startText, endText] = timeSlot.split(" - ");
+  const start = appointmentStartsAt(key, startText ?? timeSlot);
+  let end = endText ? appointmentStartsAt(key, endText) : new Date(start.getTime() + SLOT_DURATION_MINUTES * MINUTE);
+  if (end <= start) end = new Date(end.getTime() + 24 * 60 * MINUTE);
+  return { start, end };
+}
+
+/** "10:15" + 50 dk → "10:15 - 11:05" */
+export function makeTimeSlot(start: string, durationMinutes: number): string {
+  const [h, m] = start.split(":").map(Number);
+  const total = h * 60 + m + durationMinutes;
+  const end = `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  return `${start} - ${end}`;
+}
+
+/** Date → İstanbul takvim günü ve "SS:DD" */
+function toIstanbul(d: Date): { key: DateKey; time: string } {
+  const shifted = new Date(d.getTime() + ISTANBUL_OFFSET_MS).toISOString();
+  return { key: shifted.slice(0, 10), time: shifted.slice(11, 16) };
+}
+
+function dayStart(key: DateKey): Date {
+  return appointmentStartsAt(key, "00:00");
+}
+
+/* ---------- DTO dönüşümü ---------- */
+
+type PopulatedPatient = { _id: Types.ObjectId; name: string; email?: string; phone?: string; userId?: Types.ObjectId };
 
 type LeanAppointment = Omit<IAppointment, "patientId"> & {
   _id: Types.ObjectId;
@@ -37,12 +70,20 @@ function isPopulated(p: LeanAppointment["patientId"]): p is PopulatedPatient {
 export function toAppointmentDTO(doc: LeanAppointment): AppointmentDTO {
   const p = doc.patientId;
   const date = dateToKey(doc.date);
+  const interval = timeSlotInterval(date, doc.timeSlot);
   return {
     id: doc._id.toString(),
     serviceName: doc.serviceName,
+    serviceOption: doc.serviceOption ?? null,
+    durationMinutes: doc.durationMinutes ?? SLOT_DURATION_MINUTES,
     date,
     timeSlot: doc.timeSlot,
-    startsAt: appointmentStartsAt(date, doc.timeSlot).toISOString(),
+    startsAt: interval.start.toISOString(),
+    endsAt: interval.end.toISOString(),
+    proposal:
+      doc.proposedDate && doc.proposedTimeSlot
+        ? { date: dateToKey(doc.proposedDate), timeSlot: doc.proposedTimeSlot }
+        : null,
     status: doc.status,
     notes: doc.notes ?? "",
     source: doc.source ?? "online",
@@ -59,8 +100,11 @@ function toAdminAppointmentDTO(doc: LeanAppointment): AdminAppointmentDTO {
     adminNotes: doc.adminNotes ?? "",
     cancelledBy: doc.cancelledBy ?? null,
     googleSynced: !!doc.googleEventId,
+    patientHasAccount: isPopulated(doc.patientId) && !!doc.patientId.userId,
   };
 }
+
+/* ---------- Sorgular ---------- */
 
 export type AppointmentQuery = {
   status?: IAppointment["status"] | IAppointment["status"][];
@@ -69,6 +113,8 @@ export type AppointmentQuery = {
   to?: DateKey; // hariç
   sort?: 1 | -1;
   limit?: number;
+  /** Tarih aralığına erteleme önerisi düşen randevuları da getir */
+  includeProposals?: boolean;
 };
 
 async function queryAppointments(query: AppointmentQuery): Promise<LeanAppointment[]> {
@@ -77,15 +123,17 @@ async function queryAppointments(query: AppointmentQuery): Promise<LeanAppointme
   if (query.status) filter.status = Array.isArray(query.status) ? { $in: query.status } : query.status;
   if (query.patientId) filter.patientId = new Types.ObjectId(query.patientId);
   if (query.from || query.to) {
-    filter.date = {
+    const range = {
       ...(query.from ? { $gte: keyToDate(query.from) } : {}),
       ...(query.to ? { $lt: keyToDate(query.to) } : {}),
     };
+    if (query.includeProposals) filter.$or = [{ date: range }, { proposedDate: range }];
+    else filter.date = range;
   }
   const sort = query.sort ?? 1;
   let q = Appointment.find(filter)
     .sort({ date: sort, timeSlot: sort })
-    .populate<{ patientId: PopulatedPatient | null }>("patientId", "name email phone");
+    .populate<{ patientId: PopulatedPatient | null }>("patientId", "name email phone userId");
   if (query.limit) q = q.limit(query.limit);
   return (await q.lean()) as unknown as LeanAppointment[];
 }
@@ -100,108 +148,126 @@ export async function findAdminAppointments(query: AppointmentQuery = {}): Promi
   return (await queryAppointments(query)).map(toAdminAppointmentDTO);
 }
 
-/* ---------- Çalışma saatleri ve kapalı günler ---------- */
-
-export type WorkingDay = { dayOfWeek: number; slots: string[]; isDayOff: boolean };
-
-/** 7 günün tamamını döndürür; kaydı olmayan gün kapalı kabul edilir */
-export async function getWorkingHours(): Promise<WorkingDay[]> {
-  await connectDB();
-  const docs = await WorkingHours.find().lean();
-  return Array.from({ length: 7 }, (_, day) => {
-    const doc = docs.find((d) => d.dayOfWeek === day);
-    return {
-      dayOfWeek: day,
-      slots: doc ? [...doc.slots].sort() : [],
-      isDayOff: doc ? doc.isDayOff : true,
-    };
-  });
-}
-
-export type ClosedDayDTO = { id: string; date: DateKey; reason: string };
-
-export async function getClosedDays(from?: DateKey, to?: DateKey): Promise<ClosedDayDTO[]> {
-  await connectDB();
-  const filter =
-    from || to
-      ? { date: { ...(from ? { $gte: keyToDate(from) } : {}), ...(to ? { $lte: keyToDate(to) } : {}) } }
-      : {};
-  const docs = await ClosedDay.find(filter).sort({ date: 1 }).lean();
-  return docs.map((d) => ({ id: d._id.toString(), date: dateToKey(d.date), reason: d.reason ?? "" }));
-}
+/* ---------- Müsaitlik (Google Takvim tabanlı) ---------- */
 
 export function isBookableDate(key: DateKey, now = new Date()): boolean {
   const today = todayKey(now);
   return key >= today && key <= addDays(today, BOOKING_WINDOW_DAYS);
 }
 
-type SlotOptions = {
+/**
+ * Belirli tarih aralığında zamanı dolu tutan randevular:
+ * aktif/tamamlanmış randevular + hasta onayı bekleyen erteleme önerilerinin yeni saatleri.
+ */
+async function blockingIntervals(from: DateKey, to: DateKey, excludeAppointmentId?: string): Promise<Interval[]> {
+  await connectDB();
+  const range = { $gte: keyToDate(from), $lte: keyToDate(to) };
+  const exclude = excludeAppointmentId ? { _id: { $ne: new Types.ObjectId(excludeAppointmentId) } } : {};
+  const [booked, proposals] = await Promise.all([
+    Appointment.find({ date: range, status: { $in: [...SLOT_BLOCKING_STATUSES] }, ...exclude })
+      .select("date timeSlot")
+      .lean(),
+    Appointment.find({ proposedDate: range, status: { $in: [...ACTIVE_STATUSES] }, ...exclude })
+      .select("proposedDate proposedTimeSlot")
+      .lean(),
+  ]);
+  return [
+    ...booked.map((a) => timeSlotInterval(dateToKey(a.date), a.timeSlot)),
+    ...proposals
+      .filter((a) => a.proposedDate && a.proposedTimeSlot)
+      .map((a) => timeSlotInterval(dateToKey(a.proposedDate!), a.proposedTimeSlot!)),
+  ];
+}
+
+type AvailabilityOptions = {
   now?: Date;
   /** Admin: 60 günlük sınır uygulanmaz */
   admin?: boolean;
-  /** Ertelemede randevunun kendi slotu dolu sayılmaz */
+  /** Ertelemede randevunun kendisi dolu sayılmaz */
   excludeAppointmentId?: string;
 };
 
 /**
- * Seçilen gün için boş slot başlangıçlarını döndürür:
- * çalışma saatleri − kapalı gün − mevcut randevular − Google Takvim'deki dolu saatler − geçmiş saatler.
+ * Tarih aralığındaki her gün için randevuya uygun başlangıç saatleri ("SS:DD").
+ * Kural: Başlangıç ve bitiş "Randevu Müsaitliği" takvimindeki bir bloğun içinde olmalı; ana takvimdeki
+ * dolu etkinliklerle ve diğer randevularla çakışmamalı; geçmişte olmamalı. Başlangıçlar 15 dk aralıklıdır.
  */
-export async function getAvailableSlots(key: DateKey, options: SlotOptions = {}): Promise<string[]> {
+export async function getAvailability(
+  from: DateKey,
+  to: DateKey,
+  durationMinutes: number,
+  options: AvailabilityOptions = {},
+): Promise<Map<DateKey, string[]>> {
   const now = options.now ?? new Date();
-  if (options.admin ? key < todayKey(now) : !isBookableDate(key, now)) return [];
+  const result = new Map<DateKey, string[]>();
+  const today = todayKey(now);
+  const first = from < today ? today : from;
+  const last = options.admin ? to : [to, addDays(today, BOOKING_WINDOW_DAYS)].sort()[0]!;
+  if (first > last) return result;
 
-  await connectDB();
-  const [config, closed] = await Promise.all([
-    WorkingHours.findOne({ dayOfWeek: dayOfWeek(key) }).lean(),
-    ClosedDay.exists({ date: keyToDate(key) }),
+  const rangeStart = dayStart(first);
+  const rangeEnd = dayStart(addDays(last, 1));
+  const [blocks, busy, booked] = await Promise.all([
+    getAvailabilityBlocks(rangeStart, rangeEnd),
+    getBusyIntervals(rangeStart, rangeEnd),
+    blockingIntervals(first, last, options.excludeAppointmentId),
   ]);
-  if (closed || !config || config.isDayOff || config.slots.length === 0) return [];
+  if (!blocks?.length) return result;
 
-  const bookedFilter: Record<string, unknown> = {
-    date: keyToDate(key),
-    status: { $in: [...SLOT_BLOCKING_STATUSES] },
-  };
-  if (options.excludeAppointmentId) bookedFilter._id = { $ne: new Types.ObjectId(options.excludeAppointmentId) };
+  const taken = [...busy, ...booked];
+  const step = AVAILABILITY_STEP_MINUTES * MINUTE;
+  const duration = durationMinutes * MINUTE;
 
-  const [booked, busy] = await Promise.all([
-    Appointment.find(bookedFilter).select("timeSlot").lean(),
-    getBusyIntervals(appointmentStartsAt(key, "00:00"), appointmentStartsAt(addDays(key, 1), "00:00")),
-  ]);
-  // Randevular zaman aralığı olarak karşılaştırılır (özel saatli randevular komşu slotları da kapatır)
-  const bookedIntervals = booked.map((b) => slotInterval(key, b.timeSlot));
-
-  return [...config.slots].sort().filter((start) => {
-    const { start: slotStart, end: slotEnd } = slotInterval(key, start);
-    if (slotStart <= now) return false;
-    if (bookedIntervals.some((b) => overlaps(b, { start: slotStart, end: slotEnd }))) return false;
-    // Google Takvim'de çakışan etkinlik varsa saat kapalı
-    return !busy.some((b) => overlaps(b, { start: slotStart, end: slotEnd }));
-  });
+  for (const block of blocks) {
+    // İlk başlangıç: bloğun başlangıcından sonraki ilk 15 dakikalık saat
+    let t = Math.ceil(Math.max(block.start.getTime(), rangeStart.getTime()) / step) * step;
+    const blockEnd = Math.min(block.end.getTime(), rangeEnd.getTime());
+    for (; t + duration <= blockEnd; t += step) {
+      const candidate = { start: new Date(t), end: new Date(t + duration) };
+      if (candidate.start <= now) continue;
+      if (taken.some((i) => overlaps(i, candidate))) continue;
+      const { key, time } = toIstanbul(candidate.start);
+      if (key < first || key > last) continue;
+      const list = result.get(key) ?? [];
+      if (!list.includes(time)) list.push(time);
+      result.set(key, list);
+    }
+  }
+  for (const [key, list] of result) result.set(key, list.sort());
+  return result;
 }
 
-type Interval = { start: Date; end: Date };
-
-function slotInterval(key: DateKey, timeSlotOrStart: string): Interval {
-  const start = appointmentStartsAt(key, timeSlotOrStart);
-  return { start, end: new Date(start.getTime() + SLOT_DURATION_MINUTES * 60_000) };
+export async function getAvailableStarts(
+  key: DateKey,
+  durationMinutes: number,
+  options: AvailabilityOptions = {},
+): Promise<string[]> {
+  return (await getAvailability(key, key, durationMinutes, options)).get(key) ?? [];
 }
 
-function overlaps(a: Interval, b: Interval): boolean {
-  return a.start < b.end && a.end > b.start;
-}
-
-/** Verilen saat aralığı başka bir aktif randevuyla çakışıyor mu (admin çalışma saati dışı ekleme için) */
+/** Verilen saat aralığı başka bir randevuyla (veya bekleyen erteleme önerisiyle) çakışıyor mu */
 export async function isSlotTaken(key: DateKey, timeSlot: string, excludeAppointmentId?: string): Promise<boolean> {
-  await connectDB();
-  const filter: Record<string, unknown> = {
-    date: keyToDate(key),
+  const wanted = timeSlotInterval(key, timeSlot);
+  const day = (await blockingIntervals(addDays(key, -1), addDays(key, 1), excludeAppointmentId));
+  return day.some((i) => overlaps(i, wanted));
+}
+
+/**
+ * Eşzamanlı iki kayıt aynı aralığı alırsa: daha sonra oluşturulan (büyük _id) kayıt geri alınır.
+ * Kaydı oluşturduktan hemen sonra çağrılır; çakışma varsa kendi kaydını siler ve true döner.
+ */
+export async function rollbackIfOverlapping(appointmentId: Types.ObjectId, key: DateKey, timeSlot: string): Promise<boolean> {
+  const wanted = timeSlotInterval(key, timeSlot);
+  const others = await Appointment.find({
+    _id: { $lt: appointmentId },
+    date: { $gte: keyToDate(addDays(key, -1)), $lte: keyToDate(addDays(key, 1)) },
     status: { $in: [...SLOT_BLOCKING_STATUSES] },
-  };
-  if (excludeAppointmentId) filter._id = { $ne: new Types.ObjectId(excludeAppointmentId) };
-  const sameDay = await Appointment.find(filter).select("timeSlot").lean();
-  const wanted = slotInterval(key, timeSlot);
-  return sameDay.some((a) => overlaps(slotInterval(key, a.timeSlot), wanted));
+  })
+    .select("date timeSlot")
+    .lean();
+  const conflict = others.some((a) => overlaps(timeSlotInterval(dateToKey(a.date), a.timeSlot), wanted));
+  if (conflict) await Appointment.deleteOne({ _id: appointmentId });
+  return conflict;
 }
 
 /* ---------- Google Takvim senkronizasyonu ---------- */
@@ -231,23 +297,25 @@ export async function syncAppointmentToGoogle(appointmentId: string): Promise<vo
     if (doc.status === "completed" && doc.googleEventId) return;
 
     const date = dateToKey(doc.date);
-    const start = appointmentStartsAt(date, doc.timeSlot);
+    const { start, end } = timeSlotInterval(date, doc.timeSlot);
     const patient = doc.patientId;
-    // Gizlilik: hastanın kendi yazdığı not (sağlık bilgisi içerebilir) takvime aktarılmaz
+    const label = serviceLabel(doc.serviceName, doc.serviceOption);
+    // KVKK aydınlatma metninde belirtildiği üzere şikâyet açıklaması da takvime aktarılır
     const eventId = await upsertCalendarEvent(
       {
         appointmentId: doc._id.toString(),
-        summary: `${patient?.name ?? "Hasta"} – ${doc.serviceName}`,
+        summary: `${patient?.name ?? "Hasta"} – ${label}`,
         description: [
-          `Hizmet: ${doc.serviceName}`,
+          `Hizmet: ${label}`,
           patient?.phone ? `Telefon: ${patient.phone}` : null,
+          doc.notes ? `Şikâyet: ${doc.notes}` : null,
           doc.source === "admin" ? "Klinikten oluşturuldu" : "Online randevu",
           `Panel: ${siteConfig.url.replace(/\/$/, "")}/admin/takvim?tarih=${date}`,
         ]
           .filter(Boolean)
           .join("\n"),
         start,
-        end: new Date(start.getTime() + SLOT_DURATION_MINUTES * 60_000),
+        end,
         location: siteConfig.address.full,
       },
       doc.googleEventId,
@@ -258,4 +326,32 @@ export async function syncAppointmentToGoogle(appointmentId: string): Promise<vo
   } catch (error) {
     console.error("[google-calendar:sync]", error);
   }
+}
+
+/* ---------- Takvim görünümü için müsaitlik blokları ---------- */
+
+export type DayBlock = { start: string; end: string };
+
+/**
+ * Tarih aralığındaki "Randevu Müsaitliği" bloklarını gün gün "SS:DD" olarak döndürür.
+ * null: müsaitlik takvimi ayarlanmamış veya okunamadı.
+ */
+export async function getAvailabilityBlocksByDay(from: DateKey, to: DateKey): Promise<Record<DateKey, DayBlock[]> | null> {
+  const blocks = await getAvailabilityBlocks(dayStart(from), dayStart(addDays(to, 1)));
+  if (!blocks) return null;
+  const byDay: Record<DateKey, DayBlock[]> = {};
+  for (const block of blocks) {
+    // Gece yarısını aşan blokları günlere böl
+    let cursor = block.start;
+    while (cursor < block.end) {
+      const { key, time } = toIstanbul(cursor);
+      const nextMidnight = dayStart(addDays(key, 1));
+      const segmentEnd = block.end < nextMidnight ? block.end : nextMidnight;
+      const endTime = segmentEnd.getTime() === nextMidnight.getTime() ? "24:00" : toIstanbul(segmentEnd).time;
+      if (key >= from && key <= to) (byDay[key] ??= []).push({ start: time, end: endTime });
+      cursor = segmentEnd;
+    }
+  }
+  for (const key of Object.keys(byDay)) byDay[key]!.sort((a, b) => a.start.localeCompare(b.start));
+  return byDay;
 }

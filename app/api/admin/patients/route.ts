@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/guards";
 import { searchPatients } from "@/lib/data/patients";
-import { jsonError, readJson } from "@/lib/http";
+import { isDuplicateKeyError, jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
 import { toFieldErrors } from "@/lib/validations/auth";
 import { patientSchema } from "@/lib/validations/patients";
@@ -34,9 +34,20 @@ export async function POST(request: Request) {
       }
     }
 
+    if (data.tcNo) {
+      const sameTc = await Patient.findOne({ tcNo: data.tcNo }).select("_id name").lean();
+      if (sameTc) {
+        return jsonError(`Bu T.C. kimlik numarasıyla kayıtlı bir hasta var: ${sameTc.name}`, 409, {
+          errors: { tcNo: "Bu T.C. kimlik numarası başka bir hastaya ait." },
+          existingId: sameTc._id.toString(),
+        });
+      }
+    }
+
     const patient = await Patient.create({ ...data, source: "clinic" });
     return NextResponse.json({ message: "Hasta kaydedildi.", id: patient._id.toString() }, { status: 201 });
   } catch (err) {
+    if (isDuplicateKeyError(err)) return jsonError("Bu T.C. kimlik numarası başka bir hastaya ait.", 409, { errors: { tcNo: "Zaten kayıtlı." } });
     console.error("[admin:patients:create]", err);
     return jsonError("Hasta kaydedilirken bir hata oluştu.", 500);
   }

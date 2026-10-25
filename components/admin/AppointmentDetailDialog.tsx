@@ -22,6 +22,7 @@ import StatusActions from "@/components/admin/StatusActions";
 import { StatusBadge } from "@/components/panel/ui";
 import { RESCHEDULABLE_STATUSES, type AdminAppointmentDTO } from "@/lib/appointments";
 import { formatDateLong, formatTimestamp, isTime, todayKey } from "@/lib/dates";
+import { serviceLabel } from "@/lib/services";
 
 type Props = {
   appointment: AdminAppointmentDTO | null;
@@ -117,12 +118,12 @@ export default function AppointmentDetailDialog({ appointment, onClose }: Props)
                 )
               }
             />
-            <Row icon={Stethoscope} label="Hizmet" value={appointment.serviceName} />
+            <Row icon={Stethoscope} label="Hizmet" value={`${serviceLabel(appointment.serviceName, appointment.serviceOption)} · ${appointment.durationMinutes} dk`} />
             <Row icon={CalendarDays} label="Tarih" value={formatDateLong(appointment.date)} />
             <Row icon={Clock} label="Saat" value={appointment.timeSlot} />
             <Row
               icon={MessageSquareText}
-              label="Hasta notu"
+              label="Şikâyet açıklaması"
               value={<span className="whitespace-pre-wrap">{appointment.notes || "-"}</span>}
             />
             <p className="text-xs text-slate-400">
@@ -132,6 +133,7 @@ export default function AppointmentDetailDialog({ appointment, onClose }: Props)
           </dl>
 
           <div className="space-y-5 border-t border-slate-100 px-6 py-5">
+            <PendingProposal appointment={appointment} />
             <AdminNotes appointment={appointment} />
             {RESCHEDULABLE_STATUSES.includes(appointment.status) && (
               <Reschedule appointment={appointment} onDone={onClose} />
@@ -213,10 +215,43 @@ function AdminNotes({ appointment }: { appointment: AdminAppointmentDTO }) {
 
 type Slot = { start: string; label: string };
 
-/** Tarih / saat değiştirme */
+/** Bekleyen erteleme önerisi (hasta onayı bekleniyor) */
+function PendingProposal({ appointment }: { appointment: AdminAppointmentDTO }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  if (!appointment.proposal) return null;
+
+  async function withdraw() {
+    setLoading(true);
+    await fetch(`/api/admin/appointments/${appointment.id}/reschedule`, { method: "DELETE" }).catch(() => null);
+    setLoading(false);
+    router.refresh();
+  }
+
+  return (
+    <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+      <p className="font-semibold">Hasta onayı bekleniyor</p>
+      <p className="mt-1">
+        Önerilen yeni tarih: {formatDateLong(appointment.proposal.date)} · {appointment.proposal.timeSlot}. Hasta kabul
+        edince randevu taşınır; reddederse iptal olur.
+      </p>
+      <button
+        type="button"
+        onClick={withdraw}
+        disabled={loading}
+        className="mt-2 text-xs font-semibold text-amber-800 underline disabled:opacity-50"
+      >
+        Öneriyi geri çek
+      </button>
+    </div>
+  );
+}
+
+/** Tarih / saat değiştirme: hastaya öner veya telefonda onaylandıysa doğrudan taşı */
 function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO; onDone: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"propose" | "confirmed">(appointment.patientHasAccount ? "propose" : "confirmed");
   const [date, setDate] = useState(appointment.date);
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [time, setTime] = useState<string>("");
@@ -231,12 +266,14 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
     const controller = new AbortController();
     setSlots(null);
     setTime("");
-    fetch(`/api/admin/availability?date=${date}&exclude=${appointment.id}`, { signal: controller.signal })
+    fetch(`/api/admin/availability?date=${date}&duration=${appointment.durationMinutes}&exclude=${appointment.id}`, {
+      signal: controller.signal,
+    })
       .then((r) => r.json())
       .then((d: { slots?: Slot[] }) => setSlots(d.slots ?? []))
       .catch(() => {});
     return () => controller.abort();
-  }, [open, date, appointment.id]);
+  }, [open, date, appointment.id, appointment.durationMinutes]);
 
   const chosenTime = outside ? customTime : time;
 
@@ -251,7 +288,7 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
       const res = await fetch(`/api/admin/appointments/${appointment.id}/reschedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time: chosenTime, allowOutsideHours: outside, notifyPatient: notify }),
+        body: JSON.stringify({ date, time: chosenTime, mode, allowOutsideHours: outside, notifyPatient: notify }),
       });
       const data = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) {
@@ -274,7 +311,7 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-teal-400 hover:text-teal-800"
       >
-        <CalendarClock className="size-4" aria-hidden="true" /> Tarih / Saat Değiştir
+        <CalendarClock className="size-4" aria-hidden="true" /> {appointment.proposal ? "Yeni öneri yap" : "Tarih / Saat Değiştir"}
       </button>
     );
   }
@@ -282,9 +319,32 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
   return (
     <div className="space-y-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200">
       <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-        <CalendarClock className="size-4" aria-hidden="true" /> Randevuyu ertele
+        <CalendarClock className="size-4" aria-hidden="true" /> Randevuyu ertele ({appointment.durationMinutes} dk)
       </p>
       {error && <FormAlert type="error" message={error} />}
+
+      <fieldset className="space-y-1.5 text-sm">
+        <legend className="sr-only">Erteleme yöntemi</legend>
+        <label className={`flex items-start gap-2 ${appointment.patientHasAccount ? "text-slate-700" : "text-slate-400"}`}>
+          <input
+            type="radio"
+            name={`mode-${appointment.id}`}
+            checked={mode === "propose"}
+            disabled={!appointment.patientHasAccount}
+            onChange={() => setMode("propose")}
+            className="mt-0.5"
+          />
+          <span>
+            Hastaya öner — hasta panelden kabul edince kesinleşir
+            {!appointment.patientHasAccount && " (hastanın online hesabı yok)"}
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-slate-700">
+          <input type="radio" name={`mode-${appointment.id}`} checked={mode === "confirmed"} onChange={() => setMode("confirmed")} className="mt-0.5" />
+          <span>Hasta yeni saati kabul etti (ör. telefonda) — randevu hemen taşınır</span>
+        </label>
+      </fieldset>
+
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm text-slate-600" htmlFor={`ertele-tarih-${appointment.id}`}>
           Yeni tarih
@@ -305,9 +365,9 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Müsait saatler yükleniyor...
           </p>
         ) : slots.length === 0 ? (
-          <p className="text-sm text-slate-500">Bu gün için müsait saat yok.</p>
+          <p className="text-sm text-slate-500">Bu gün için müsaitlik takviminde boş saat yok.</p>
         ) : (
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Müsait saatler">
+          <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto" role="radiogroup" aria-label="Müsait saatler">
             {slots.map((s) => (
               <button
                 key={s.start}
@@ -327,7 +387,7 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
 
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input type="checkbox" checked={outside} onChange={(e) => setOutside(e.target.checked)} />
-        Çalışma saati dışında / özel saat
+        Müsaitlik dışında / özel saat
       </label>
       {outside && (
         <input
@@ -355,7 +415,7 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
           className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
         >
           {saving && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-          Kaydet
+          {mode === "propose" ? "Hastaya Öner" : "Taşı"}
         </button>
       </div>
     </div>

@@ -68,13 +68,11 @@ export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][
 
 /** Veri sorumlusu / iletişim kartı */
 export function ContactCard({ title = "Veri Sorumlusu" }: { title?: string }) {
-  const domain = new URL(siteConfig.url).host.replace(/^www\./, "");
+  const website = siteConfig.url.replace(/\/?$/, "/");
   return (
     <div className="rounded-xl bg-slate-50 p-5 ring-1 ring-slate-200">
       <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">{title}</p>
-      <p className="mt-1 font-semibold text-slate-900">
-        {siteConfig.unit} – {siteConfig.name}
-      </p>
+      <p className="mt-1 font-semibold text-slate-900">Fizyoterapist Berkay TAN — {siteConfig.unit}</p>
       <ul className="mt-3 space-y-2 text-sm">
         <li className="flex gap-2.5">
           <MapPin className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden="true" />
@@ -95,10 +93,23 @@ export function ContactCard({ title = "Veri Sorumlusu" }: { title?: string }) {
         <li className="flex gap-2.5">
           <Globe className="mt-0.5 size-4 shrink-0 text-teal-700" aria-hidden="true" />
           <a href={siteConfig.url} className="hover:text-teal-700">
-            {domain}
+            {website}
           </a>
         </li>
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Avukat metnindeki "[YAYIN ÖNCESİ]" notları: bilgisi doğrulanıp metin tamamlanana kadar görünür kalır.
+ * Listesi lib/legal.ts → LEGAL_PENDING_ITEMS içinde tutulur.
+ */
+export function PendingNote({ children }: { children: React.ReactNode }) {
+  return (
+    <div role="note" className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+      <p className="text-xs font-bold tracking-wider text-amber-700 uppercase">Yayın öncesi tamamlanacak</p>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }

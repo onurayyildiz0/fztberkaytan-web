@@ -6,6 +6,7 @@ import { appointmentStartsAt, dateToKey } from "@/lib/dates";
 import { sendPatientCancelledEmail } from "@/lib/emails";
 import { isObjectId, jsonError } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
+import { serviceLabel } from "@/lib/services";
 import { siteConfig } from "@/lib/site";
 import Appointment from "@/models/Appointment";
 
@@ -53,7 +54,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       await syncAppointmentToGoogle(id);
       // Fizyoterapiste bilgi (saat tekrar boşa çıktı)
       await sendPatientCancelledEmail(
-        { serviceName: appointment.serviceName, date, timeSlot: appointment.timeSlot },
+        { serviceName: serviceLabel(appointment.serviceName, appointment.serviceOption), date, timeSlot: appointment.timeSlot },
         { name: patient.name, email: email ?? "-" },
       );
     });

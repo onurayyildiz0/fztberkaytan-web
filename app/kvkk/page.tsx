@@ -1,201 +1,230 @@
 import LegalPage, { legalMetadata, type LegalSection } from "@/components/legal/LegalPage";
-import { ContactCard, InlineLink, List, Note, Table, Term } from "@/components/legal/prose";
+import { ContactCard, List, Note, PendingNote, Table, Term } from "@/components/legal/prose";
+import { LEGAL_LAST_UPDATED } from "@/lib/legal";
 
 const PATH = "/kvkk";
 
 export const metadata = legalMetadata({
   title: "KVKK Aydınlatma Metni",
   description:
-    "6698 sayılı KVKK kapsamında kişisel verilerinizin işlenmesi, korunması ve haklarınıza ilişkin aydınlatma metni.",
+    "6698 sayılı KVKK kapsamında fztberkaytan.com ve online randevu sistemi üzerinden işlenen kişisel verilere ilişkin aydınlatma metni.",
   path: PATH,
 });
 
 const sections: LegalSection[] = [
   {
     id: "veri-sorumlusu",
-    title: "Veri Sorumlusu",
+    title: "Veri sorumlusu ve kapsam",
     content: (
       <>
         <p>
-          6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamında kişisel verileriniz, veri sorumlusu
-          sıfatıyla aşağıda bilgileri yer alan veri sorumlusu tarafından, bu metinde açıklanan kapsam ve amaçlarla
-          işlenebilmektedir.
+          6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamında, fztberkaytan.com internet sitesi ve online
+          randevu sistemi üzerinden elde edilen kişisel verilerinizin veri sorumlusu <Term>Fizyoterapist Berkay TAN</Term>’dır.
         </p>
-        <ContactCard />
+        <ContactCard title="Veri sorumlusu / faaliyet yeri" />
+        <p>
+          Bu metin; site ziyaretleri, üyelik, iletişim ve online randevu işlemlerini kapsar. Klinik ortamında yürütülen
+          fizyoterapi hizmeti ve hasta dosyası işlemleri hakkında ilgili aşamada ayrıca aydınlatma yapılır. Bu metin bir açık
+          rıza veya tıbbi uygulama onamı değildir.
+        </p>
       </>
     ),
   },
   {
     id: "islenen-veriler",
-    title: "İşlenen Kişisel Veriler",
+    title: "İşlenen kişisel veriler",
     content: (
       <>
-        <p>
-          Web sitesi, online randevu sistemi, iletişim kanalları ve fizyoterapi hizmetlerinin yürütülmesi kapsamında
-          aşağıdaki kişisel veriler işlenebilir:
-        </p>
         <Table
-          head={["Veri Kategorisi", "Kapsam"]}
+          head={["Veri kategorisi", "Kapsam"]}
           rows={[
-            [<Term key="k">Kimlik bilgileri</Term>, "Ad, soyad."],
-            [<Term key="k">İletişim bilgileri</Term>, "Telefon numarası, e-posta adresi."],
+            [<Term key="k">Kimlik ve iletişim</Term>, "Ad, soyad, telefon numarası ve e-posta adresi"],
             [
-              <Term key="k">Randevu ve hizmet bilgileri</Term>,
-              "Randevu tarihi ve saati, tercih edilen hizmet, randevu durumu, randevu notları ve iletişim kayıtları.",
+              <Term key="k">Hesap ve oturum</Term>,
+              "Üyelik bilgileri, kimlik doğrulama kayıtları, parola doğrulama verileri ve oturum bilgileri",
             ],
             [
-              <Term key="k">Adres bilgileri</Term>,
-              "Evde fizyoterapi hizmeti talep edilmesi halinde adres, il/ilçe ve gerekli konum bilgileri.",
+              <Term key="k">Randevu ve iletişim</Term>,
+              "Seçilen hizmet, talep edilen tarih/saat, randevu durumu, değişiklik ve iptal bilgileri, talep/yanıt kayıtları",
             ],
             [
-              <Term key="k">Sağlık bilgileri</Term>,
-              "İlgili kişinin kendisi tarafından iletilmesi veya sağlık hizmetinin yürütülmesi sırasında gerekli olması halinde şikâyet, sağlık geçmişi, değerlendirme bulguları ve fizyoterapi sürecine ilişkin bilgiler.",
+              <Term key="k">İşlem güvenliği</Term>,
+              "IP adresi, erişim zamanı, güvenlik ve hata kayıtları ile hizmetin çalışması için gereken cihaz/tarayıcı bilgileri",
             ],
+            [<Term key="k">Çerez verileri</Term>, "Çerez Politikasında açıklanan oturum ve güvenlik verileri"],
             [
-              <Term key="k">İşlem güvenliği ve internet kullanım bilgileri</Term>,
-              "Kullanıcı hesabı bilgileri, geri döndürülemez şekilde şifrelenmiş parola, oturum bilgileri, IP adresi, çerez kayıtları ve web sitesi kullanımına ilişkin teknik kayıtlar.",
+              <Term key="k">Sağlık verileri</Term>,
+              "Randevu formundaki şikâyet açıklaması ve sağlık durumunu ortaya koyan hizmet/iletişim bilgileri",
             ],
           ]}
         />
         <Note>
-          Sağlık verileri KVKK kapsamında <strong>özel nitelikli kişisel veri</strong> niteliğindedir ve bunların
-          işlenmesinde mevzuatta öngörülen ilave güvenlik ve işleme şartları dikkate alınır.
+          Randevu formunda ad, soyad, e-posta adresi, telefon numarası ve şikâyet açıklaması alınır. Şikâyet alanına yazılan
+          sağlık bilgileri KVKK kapsamında <strong>özel nitelikli kişisel veridir</strong>. Açıklamanızı başvuru nedenini
+          anlatmaya yetecek kısa bilgiyle sınırlayınız; gereksiz ayrıntılı sağlık geçmişi veya üçüncü kişilere ait sağlık
+          bilgisi paylaşmayınız. Randevu tarih, saat ve durum bilgileri sistemde ayrıca oluşur.
         </Note>
       </>
     ),
   },
   {
-    id: "isleme-amaclari",
-    title: "Kişisel Verilerin İşlenme Amaçları",
+    id: "amaclar-hukuki-sebepler",
+    title: "Amaçlar ve hukuki sebepler",
     content: (
       <>
-        <p>Kişisel verileriniz;</p>
-        <List
-          items={[
-            "randevu oluşturulması ve yönetilmesi,",
-            "sizinle iletişim kurulması ve randevu bilgilendirmelerinin yapılması,",
-            "fizyoterapi değerlendirme ve hizmet süreçlerinin planlanması ve yürütülmesi,",
-            "evde fizyoterapi hizmetlerinde hizmet adresinin belirlenmesi,",
-            "hasta ve danışan kayıtlarının mevzuata uygun şekilde tutulması,",
-            "kullanıcı hesabının oluşturulması ve hesap güvenliğinin sağlanması,",
-            "talep, soru ve başvuruların cevaplandırılması,",
-            "hukuki ve idari yükümlülüklerin yerine getirilmesi,",
-            "bilgi güvenliği ve web sitesi güvenliğinin sağlanması",
+        <Table
+          head={["İşleme faaliyeti ve amacı", "Hukuki sebep"]}
+          rows={[
+            [
+              "Talebiniz üzerine hesap oluşturulması, randevu talebinin alınması, hizmet öncesi iletişim ve randevu durumunun bildirilmesi",
+              "Sözleşmenin kurulması veya ifasıyla doğrudan ilgili ve gerekli olması — KVKK m.5/2-c",
+            ],
+            [
+              "Yetkili makam taleplerinin karşılanması ve mevzuatın zorunlu tuttuğu işlemlerin yürütülmesi",
+              "Hukuki yükümlülüğün yerine getirilmesi — KVKK m.5/2-ç; kanunda açıkça öngörülen hâllerde m.5/2-a",
+            ],
+            [
+              "Uyuşmazlıklarda gerekli kayıtların kullanılması ve hak arama süreçlerinin yürütülmesi",
+              "Bir hakkın tesisi, kullanılması veya korunması için zorunluluk — KVKK m.5/2-e",
+            ],
+            [
+              "Yetkisiz erişimin önlenmesi, hesap ve sistem güvenliğinin sağlanması, gerekli hata kayıtlarının değerlendirilmesi",
+              "Temel hak ve özgürlüklerinize zarar vermemek kaydıyla meşru menfaat için zorunluluk — KVKK m.5/2-f",
+            ],
+            [
+              "Şikâyet açıklamasının, sağlık hizmetinin planlanması ve yürütülmesi için gerekli olduğu ölçüde, mesleki yetki kapsamında ve sır saklama yükümlülüğü altında değerlendirilmesi",
+              "KVKK m.6/3-e",
+            ],
           ]}
         />
-        <p>amaçlarıyla, işlendikleri amaçla bağlantılı, sınırlı ve ölçülü şekilde işlenebilir.</p>
-      </>
-    ),
-  },
-  {
-    id: "toplanma-yontemi",
-    title: "Kişisel Verilerin Toplanma Yöntemi ve Hukuki Sebebi",
-    content: (
-      <>
         <p>
-          Kişisel verileriniz; web sitesindeki üyelik, randevu ve iletişim formları, hasta paneli, telefon, e-posta,
-          yüz yüze görüşmeler ve hizmet sürecinde oluşturulan kayıtlar aracılığıyla elektronik veya fiziki yollarla
-          toplanabilir.
-        </p>
-        <p>
-          Kişisel veriler, somut işleme faaliyetine göre KVKK’nın 5. maddesinde yer alan sözleşmenin kurulması veya
-          ifasıyla doğrudan ilgili olması, veri sorumlusunun hukuki yükümlülüğünü yerine getirmesi, bir hakkın tesisi,
-          kullanılması veya korunması ve ilgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla veri
-          sorumlusunun meşru menfaatleri gibi hukuki sebeplere dayanılarak işlenebilir.
-        </p>
-        <p>
-          Sağlık verileri ise gerekli olduğu ölçüde, KVKK’nın 6. maddesi kapsamında tıbbi teşhis, tedavi ve bakım
-          hizmetleri ile sağlık hizmetlerinin yürütülmesi ve planlanması amacıyla, sır saklama yükümlülüğü altında
-          bulunan kişilerce işlenebilir.
+          Her hukuki sebep yalnızca koşullarını sağlayan işlem ve gerekli veri bakımından uygulanır. Meşru menfaat, sağlık
+          verilerinin işlenmesi için tek başına dayanak oluşturmaz. Kanundaki diğer işleme şartlarının bulunmadığı ve açık
+          rızanın hukuken uygun dayanak olduğu ayrı işlemler, ilgili aydınlatma ve açık rıza süreci tamamlanmadan
+          gerçekleştirilmez.
         </p>
       </>
     ),
   },
   {
-    id: "aktarim",
-    title: "Kişisel Verilerin Aktarılması",
-    content: (
-      <>
-        <p>Kişisel verileriniz, işleme amacıyla sınırlı olmak üzere ve gerekli güvenlik önlemleri alınarak;</p>
-        <List
-          items={[
-            "yetkili kamu kurum ve kuruluşlarına,",
-            "mahkemeler ve diğer yetkili mercilere,",
-            "muhasebe, bilişim ve teknik destek hizmeti sağlayan hizmet sağlayıcılara,",
-            "web sitesi ve randevu altyapısının çalışmasını sağlayan hizmet sağlayıcılara",
-          ]}
-        />
-        <p>mevzuatın izin verdiği ölçüde aktarılabilir.</p>
-        <p>
-          Web sitesi ve online randevu sistemi; barındırma (hosting) hizmeti, hesap ve randevu kayıtlarının saklandığı
-          bulut veritabanı hizmeti (MongoDB Atlas), randevu bildirimlerinin iletildiği e-posta gönderim hizmeti
-          (Resend) ve onaylanan randevuların planlandığı takvim hizmeti (Google Takvim) kullanılarak çalışmaktadır.
-          Takvime yalnızca ad soyad, hizmet, randevu saati ve telefon numarası aktarılır; randevu notları aktarılmaz. Bu hizmet sağlayıcıların sunucuları yurt dışında bulunabilir. Yurt
-          dışına veri aktarımı söz konusu olduğunda aktarım, KVKK’nın 9. maddesinde öngörülen şartlar ve uygun
-          güvenceler çerçevesinde gerçekleştirilir.
-        </p>
-      </>
-    ),
-  },
-  {
-    id: "saklama",
-    title: "Kişisel Verilerin Saklanması",
+    id: "toplama-yontemleri",
+    title: "Toplama yöntemleri",
     content: (
       <p>
-        Kişisel verileriniz, ilgili mevzuatta öngörülen süreler ile işlenme amaçlarının gerektirdiği süre boyunca
-        muhafaza edilir. Saklama süresinin sona ermesi veya işleme şartlarının ortadan kalkması halinde veriler,
-        mevzuata uygun şekilde silinir, yok edilir veya anonim hale getirilir.
+        Veriler; üyelik, randevu ve iletişim formları, hasta paneli, telefon ve e-posta iletişimi, sunucu kayıtları ve Çerez
+        Politikasında açıklanan çerezler aracılığıyla elektronik ortamda, tamamen veya kısmen otomatik yollarla elde edilir.
+        Bu süreçlerle bağlantılı yazılı başvurular veri kayıt sisteminin parçası olarak otomatik olmayan yollarla da
+        işlenebilir.
+      </p>
+    ),
+  },
+  {
+    id: "alicilar-aktarim",
+    title: "Alıcılar ve aktarım amaçları",
+    content: (
+      <>
+        <p>
+          Randevu formuna yazdığınız şikâyet açıklaması, başvurunuzun değerlendirilmesi ve hizmetin planlanması amacıyla
+          fizyoterapistin yönetim panelinde görüntülenir veya kendisine e-posta ile iletilir; randevu kaydıyla birlikte
+          Google Takvim’e de aktarılır. Bu akış sağlık verisi içerdiğinden alıcılar, yetkilendirme ve aktarım koşulları
+          sağlık verilerinin korunmasına ilişkin kurallara göre değerlendirilir.
+        </p>
+        <p>
+          Veriler, gerekli veriyle sınırlı olmak üzere; sitenin işletilmesi için barındırma/veritabanı ve yetkilendirilmiş
+          teknik destek sağlayıcılarına, işlem bildirimleri için e-posta hizmeti sağlayıcısına, randevu planlaması için
+          takvim hizmeti sağlayıcısına ve hukuki yükümlülük veya yetkili talep kapsamında kamu kurumları ile yargı
+          mercilerine aktarılabilir. Yurt içi aktarımlarda KVKK m.8 koşulları gözetilir. Her alıcıya bütün kayıtlar verilmez.
+        </p>
+        <Table
+          head={["Altyapı", "Amaç ve veri kapsamı"]}
+          rows={[
+            [
+              <Term key="k">Hosting</Term>,
+              <span key="v">
+                Sitenin çalışması, isteklerin işlenmesi ve gerekli teknik kayıtların tutulması.{" "}
+                <span className="font-semibold text-amber-700">[Sağlayıcının adı yayın öncesi eklenecek]</span>
+              </span>,
+            ],
+            [
+              <Term key="k">MongoDB Atlas</Term>,
+              "Kullanıcı hesabı ve randevu kayıtlarının saklanması; randevu formundaki şikâyet açıklaması da randevu kaydıyla birlikte bu veritabanında tutulur",
+            ],
+            [
+              <Term key="k">Resend / e-posta altyapısı</Term>,
+              "Randevu bildirimlerinin iletilmesi. Fizyoterapiste gönderilen başvuru bildirimleri şikâyet açıklamasını da içerir; bu e-postalar Resend aracılığıyla gönderilir ve fizyoterapistin Google (Gmail) e-posta kutusunda saklanır",
+            ],
+            [
+              <Term key="k">Google Takvim</Term>,
+              "Onaylanan randevunun ad-soyad, seçilen hizmet, tarih/saat ve telefon bilgileriyle takvimde planlanması; hastanın randevu formuna yazdığı şikâyet açıklaması da Google Takvim’e aktarılır",
+            ],
+          ]}
+        />
+        <PendingNote>
+          Her sağlayıcı için verilerin tutulduğu/erişildiği ülkeler ve fiilen kurulmuş KVKK m.9 aktarım dayanağı (ör. standart
+          sözleşme ve türü, kapsadığı aktarımlar) burada açıklanacaktır. Kurulmamış bir güvence varmış gibi yazılmamalıdır.
+          İncelenecek akışlar: barındırma, MongoDB Atlas, Resend, Google Takvim ve Gmail üzerinden yazışma. (Sitede gömülü
+          harita kullanılmamaktadır.)
+        </PendingNote>
+      </>
+    ),
+  },
+  {
+    id: "saklama-imha",
+    title: "Saklama ve imha",
+    content: (
+      <p>
+        Veriler, ilgili veri türü için mevzuatta zorunlu tutulan süreler ve işleme amacının gerektirdiği sürelerle sınırlı
+        olarak saklanır. Hesap kapatılması, saklanması için geçerli hukuki sebep bulunan bütün kayıtların aynı anda silinmesi
+        anlamına gelmez. İşleme şartları ortadan kalktığında veriler, yedekleme ve imha süreçleri de dikkate alınarak
+        mevzuata uygun şekilde silinir, yok edilir veya anonim hâle getirilir.
       </p>
     ),
   },
   {
     id: "haklariniz",
-    title: "KVKK Kapsamındaki Haklarınız",
+    title: "Haklarınız",
     content: (
       <>
-        <p>KVKK’nın 11. maddesi kapsamında veri sorumlusuna başvurarak;</p>
+        <p>KVKK m.11 kapsamında;</p>
         <List
           items={[
             "kişisel verilerinizin işlenip işlenmediğini öğrenme,",
-            "işlenmişse buna ilişkin bilgi talep etme,",
-            "işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,",
-            "yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri öğrenme,",
-            "eksik veya yanlış işlenmiş verilerin düzeltilmesini isteme,",
-            "kanuni şartların oluşması halinde silinmesini veya yok edilmesini talep etme,",
-            "düzeltme veya silme işlemlerinin verilerin aktarıldığı üçüncü kişilere bildirilmesini isteme,",
-            "işlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle aleyhinize bir sonucun ortaya çıkmasına itiraz etme,",
-            "kanuna aykırı veri işlenmesi nedeniyle zarara uğramanız halinde zararın giderilmesini talep etme",
+            "işlenmişse bilgi isteme,",
+            "işleme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,",
+            "yurt içinde/yurt dışında aktarıldığı üçüncü kişileri öğrenme,",
+            "eksik veya yanlış verileri düzelttirme,",
+            "kanuni şartlar oluştuğunda silinmesini veya yok edilmesini isteme,",
+            "düzeltme/silme işlemlerinin alıcılara bildirilmesini talep etme",
           ]}
         />
-        <p>haklarına sahipsiniz.</p>
+        <p>
+          haklarınız vardır. Ayrıca münhasıran otomatik sistemlerle yapılan analiz sonucunda aleyhinize bir sonucun ortaya
+          çıkmasına itiraz edebilir ve kanuna aykırı işleme nedeniyle uğradığınız zararın giderilmesini isteyebilirsiniz.
+        </p>
       </>
     ),
   },
   {
     id: "basvuru",
-    title: "Başvuru ve İletişim",
+    title: "Başvuru",
     content: (
       <>
         <p>
-          KVKK kapsamındaki taleplerinizi, Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ’e uygun olarak;
-          yazılı olarak aşağıdaki adrese iletebilir veya daha önce tarafımıza bildirdiğiniz ve kayıtlarımızda bulunan
-          e-posta adresinizden aşağıdaki e-posta adresine gönderebilirsiniz. Başvurunuzda ad, soyad, iletişim
-          bilgileriniz ve talep konunuzun açıkça belirtilmesi gerekmektedir.
-        </p>
-        <ContactCard title="Başvuru Adresi" />
-        <p>
-          Başvurular, talebin niteliğine göre en kısa sürede ve en geç <Term>otuz (30) gün</Term> içinde ücretsiz
-          olarak sonuçlandırılır. İşlemin ayrıca bir maliyet gerektirmesi halinde, Kişisel Verileri Koruma Kurulu
-          tarafından belirlenen tarifedeki ücret alınabilir.
+          Başvurunuzu Veri Sorumlusuna Başvuru Usul ve Esasları Hakkında Tebliğ’e uygun şekilde yukarıdaki adrese yazılı
+          olarak veya daha önce bildirdiğiniz ve kayıtlarımızda bulunan e-posta adresinizden <Term>fztberkay@gmail.com</Term>{" "}
+          adresine gönderebilirsiniz. Mevzuatta tanınan diğer başvuru yöntemleri saklıdır.
         </p>
         <p>
-          Başvurunuzun reddedilmesi, verilen cevabı yetersiz bulmanız veya süresinde cevap verilmemesi hallerinde,
-          KVKK’nın 14. maddesi uyarınca Kişisel Verileri Koruma Kurulu’na şikâyette bulunma hakkınız saklıdır.
+          Başvuruda ad-soyad, yazılı başvuruda imza, T.C. vatandaşları için T.C. kimlik numarası; yabancılar için uyruğu,
+          pasaport numarası veya varsa kimlik numarası, tebligata esas yerleşim/iş yeri adresi, varsa bildirime esas
+          e-posta/telefon/faks ve talep konusu bulunmalıdır. Konuyla ilgili bilgi ve belgeler eklenebilir. Gereksiz sağlık
+          belgesi veya kimlik belgesi kopyası göndermeyiniz.
         </p>
         <p>
-          Web sitemizdeki uygulamalar hakkında ayrıca{" "}
-          <InlineLink href="/gizlilik-politikasi">Gizlilik Politikası</InlineLink> ve{" "}
-          <InlineLink href="/cerez-politikasi">Çerez Politikası</InlineLink> sayfalarımızı inceleyebilirsiniz.
+          Başvurular talebin niteliğine göre en kısa sürede ve en geç <Term>30 gün</Term> içinde ücretsiz sonuçlandırılır.
+          İşlem ayrıca maliyet gerektiriyorsa Kurulun belirlediği tarifedeki ücret alınabilir. Başvuruya hatamız sebep olmuşsa
+          alınan ücret iade edilir. Ret, yetersiz yanıt veya süresinde yanıt verilmemesi hâlinde KVKK m.14 kapsamında Kurula
+          şikâyet hakkınız saklıdır.
         </p>
       </>
     ),
@@ -206,8 +235,8 @@ export default function KvkkPage() {
   return (
     <LegalPage
       title="KVKK Aydınlatma Metni"
-      lastUpdated="19 Ekim 2026"
-      intro={<p className="font-medium text-slate-900">6698 Sayılı Kişisel Verilerin Korunması Kanunu Kapsamında Aydınlatma Metni</p>}
+      lastUpdated={LEGAL_LAST_UPDATED}
+      intro={<p className="font-medium text-slate-900">Web Sitesi ve Online Randevu Sistemi KVKK Aydınlatma Metni</p>}
       sections={sections}
       currentPath={PATH}
     />

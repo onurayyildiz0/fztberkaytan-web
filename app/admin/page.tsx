@@ -27,6 +27,7 @@ import type { AppointmentStatus } from "@/lib/appointments";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { findAdminAppointments } from "@/lib/data/appointments";
 import { addDays, formatDateLong, keyToDate, monthRange, todayKey } from "@/lib/dates";
+import { LEGAL_PENDING_ITEMS } from "@/lib/legal";
 import { connectDB } from "@/lib/mongodb";
 import Appointment from "@/models/Appointment";
 import Patient from "@/models/Patient";
@@ -48,7 +49,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: "Yeni Hasta", icon: UserPlus, href: "/admin/hastalar/yeni" },
   { label: "Takvim", icon: CalendarRange, href: "/admin/takvim" },
   { label: "Randevular", icon: CalendarDays, href: "/admin/randevular" },
-  { label: "Çalışma Saatleri", icon: CalendarClock, href: "/admin/calisma-saatleri" },
+  { label: "Müsaitlik", icon: CalendarClock, href: "/admin/musaitlik" },
   { label: "Randevusuz / Hızlı Seans", icon: Zap },
   { label: "Gelir – Gider", icon: Receipt },
   { label: "Sabit Giderler", icon: Repeat },
@@ -115,6 +116,21 @@ export default async function AdminOverviewPage({
           </>
         }
       />
+
+      {LEGAL_PENDING_ITEMS.length > 0 && (
+        <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+          <p className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="size-4 text-amber-600" aria-hidden="true" /> Yasal metinlerde {LEGAL_PENDING_ITEMS.length} yayın öncesi madde açık
+          </p>
+          <ul className="mt-1 list-disc pl-6 text-amber-800">
+            {LEGAL_PENDING_ITEMS.map((p) => (
+              <li key={p.item}>
+                {p.page}: {p.item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {unresolved.length > 0 && (
         <Link

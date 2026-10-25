@@ -5,7 +5,6 @@ import { connectDB } from "@/lib/mongodb";
 import Appointment from "@/models/Appointment";
 import Patient from "@/models/Patient";
 import User from "@/models/User";
-import WorkingHours from "@/models/WorkingHours";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +18,9 @@ export async function GET() {
   if (error) return error;
 
   await connectDB();
-  const [patients, appointments, workingHours, accounts] = await Promise.all([
+  const [patients, appointments, accounts] = await Promise.all([
     Patient.find().lean(),
     Appointment.find().lean(),
-    WorkingHours.find().lean(),
     User.find().select("-password").lean(),
   ]);
 
@@ -33,10 +31,9 @@ export async function GET() {
     counts: {
       patients: patients.length,
       appointments: appointments.length,
-      workingHours: workingHours.length,
       accounts: accounts.length,
     },
-    data: { patients, appointments, workingHours, accounts },
+    data: { patients, appointments, accounts },
   };
 
   return new NextResponse(JSON.stringify(backup, null, 2), {

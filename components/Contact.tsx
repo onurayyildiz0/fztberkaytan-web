@@ -84,25 +84,35 @@ export default function Contact() {
             </div>
           </div>
 
-          <div className="flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
-            <div className="relative min-h-80 flex-1">
-              <iframe
-                title="Fizyoterapist Berkay Tan konum haritası – Alibeyköy, Eyüpsultan"
-                src={links.mapsEmbed}
-                className="absolute inset-0 size-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
+          {/* Gömülü harita yok: sayfa açılışında Google'a veri gitmez (Çerez Politikası m.3). Harita yalnızca linkle açılır. */}
+          <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-teal-700 to-teal-900 p-8 text-white shadow-sm">
+            <div>
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15">
+                <MapPin className="size-6" aria-hidden="true" />
+              </span>
+              <h3 className="mt-5 text-xl font-bold">Konum</h3>
+              <p className="mt-2 leading-relaxed text-teal-50">{siteConfig.address.full}</p>
+              <p className="mt-4 text-sm text-teal-100">Alibeyköy merkezde, Güzelyayla Caddesi üzerinde.</p>
             </div>
-            <a
-              href={links.mapsDirections}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 border-t border-slate-200 px-4 py-4 text-sm font-semibold text-teal-800 hover:bg-teal-50"
-            >
-              <Navigation className="size-4" aria-hidden="true" /> Yol Tarifi Al
-            </a>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <a
+                href={links.mapsSearch}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-semibold text-teal-800 transition hover:bg-teal-50"
+              >
+                <MapPin className="size-4" aria-hidden="true" /> Haritada Aç
+              </a>
+              <a
+                href={links.mapsDirections}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/40 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                <Navigation className="size-4" aria-hidden="true" /> Yol Tarifi Al
+              </a>
+            </div>
+            <p className="mt-4 text-xs text-teal-100/80">Bağlantılar Google Haritalar&apos;ı yeni sekmede açar.</p>
           </div>
         </div>
       </div>
