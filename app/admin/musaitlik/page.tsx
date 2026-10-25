@@ -20,12 +20,21 @@ const SETUP_STEPS = [
   "Müsait olduğunuz zamanları bu takvime etkinlik olarak çizin (ör. Salı 09:00–13:00). Tekrarlayan etkinlik de kullanabilirsiniz (her hafta Pazartesi 10:00–18:00 gibi).",
 ];
 
+const USAGE_TIPS = [
+  "Google Takvim'de yeni etkinlik oluştururken takvim olarak “Randevu Müsaitliği”ni seçin ve müsait olduğunuz saat aralığını çizin (ör. 10:00–13:00).",
+  "Her hafta aynı saatlerde müsaitseniz etkinliği “Tekrarla” seçeneğiyle haftalık yapın; tek tek girmeniz gerekmez.",
+  "Bir günü kapatmak için o günün müsaitlik bloğunu silin veya ana takviminize “Meşgul” bir etkinlik ekleyin.",
+  "Değişiklikler birkaç dakika içinde hasta randevu ekranına yansır.",
+];
+
 export default async function AvailabilityPage() {
   await requireAdminPage();
   const today = todayKey();
   const until = addDays(today, 13);
   const configured = isAvailabilityCalendarConfigured();
   const blocks = configured ? await getAvailabilityBlocksByDay(today, until) : null;
+  const connected = configured && blocks !== null;
+  const steps = connected ? USAGE_TIPS : SETUP_STEPS;
   const days = Array.from({ length: 14 }, (_, i) => addDays(today, i));
 
   return (
@@ -58,9 +67,9 @@ export default async function AvailabilityPage() {
             <li>• Onaylanan randevular ana takviminize otomatik eklenir; iptal edilince silinir.</li>
           </ul>
 
-          <h3 className="mt-6 font-semibold text-slate-900">Kurulum (bir kez)</h3>
+          <h3 className="mt-6 font-semibold text-slate-900">{connected ? "Müsaitlik nasıl eklenir?" : "Kurulum (bir kez)"}</h3>
           <ol className="mt-3 space-y-3 text-sm text-slate-600">
-            {SETUP_STEPS.map((step, i) => (
+            {steps.map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-teal-50 text-xs font-bold text-teal-800">
                   {i + 1}
@@ -70,12 +79,12 @@ export default async function AvailabilityPage() {
             ))}
           </ol>
           <a
-            href="https://calendar.google.com/calendar/r/settings"
+            href={connected ? "https://calendar.google.com/calendar/r/week" : "https://calendar.google.com/calendar/r/settings"}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:underline"
           >
-            Google Takvim ayarlarını aç <ExternalLink className="size-4" aria-hidden="true" />
+            {connected ? "Google Takvim'i aç" : "Google Takvim ayarlarını aç"} <ExternalLink className="size-4" aria-hidden="true" />
           </a>
         </Card>
 
