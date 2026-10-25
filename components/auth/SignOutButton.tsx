@@ -1,5 +1,5 @@
-import { LogOut } from "lucide-react";
 import { signOut } from "@/auth";
+import SignOutSubmit from "@/components/auth/SignOutSubmit";
 
 const VARIANTS = {
   default:
@@ -16,10 +16,7 @@ export default function SignOutButton({ variant = "default" }: { variant?: keyof
         await signOut({ redirectTo: "/" });
       }}
     >
-      <button type="submit" className={VARIANTS[variant]}>
-        <LogOut className="size-4" aria-hidden="true" />
-        {variant === "sidebar" ? "Oturumu Kapat" : "Çıkış Yap"}
-      </button>
+      <SignOutSubmit label={variant === "sidebar" ? "Oturumu Kapat" : "Çıkış Yap"} className={VARIANTS[variant]} />
     </form>
   );
 }

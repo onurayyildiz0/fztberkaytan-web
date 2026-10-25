@@ -74,7 +74,11 @@ export async function resetRateLimit(key: string): Promise<void> {
   await col.deleteOne({ _id: key });
 }
 
-/** İstemci IP adresi (proxy/Vercel arkasında x-forwarded-for ilk değer) */
+/**
+ * İstemci IP adresi. Vercel x-forwarded-for başlığını kendisi yazar (istemcinin gönderdiği değer iletilmez),
+ * bu yüzden ilk değer güvenilirdir. Vercel dışında, bu başlığı yeniden yazan bir proxy olmadan çalıştırılırsa
+ * IP sınırları atlatılabilir.
+ */
 export function getClientIp(headers: Headers): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim();
@@ -89,6 +93,8 @@ export const LIMITS = {
   loginFailuresPerEmail: { limit: 8, windowSeconds: 15 * 60 },
   /** IP başına kayıt */
   registerPerIp: { limit: 5, windowSeconds: 60 * 60 },
+  /** Aynı adrese kayıt denemesi (adrese art arda doğrulama e-postası gönderilmesini önler) */
+  registerPerEmail: { limit: 3, windowSeconds: 60 * 60 },
   /** Doğrulama e-postasını yeniden gönderme */
   resendPerIp: { limit: 5, windowSeconds: 60 * 60 },
   resendPerEmail: { limit: 3, windowSeconds: 60 * 60 },
@@ -99,7 +105,29 @@ export const LIMITS = {
   accountActionsPerUser: { limit: 10, windowSeconds: 15 * 60 },
   /** Kullanıcı başına randevu talebi */
   appointmentsPerUser: { limit: 10, windowSeconds: 60 * 60 },
+  /**
+   * Herkese açık formların (kayıt, doğrulama, şifre sıfırlama) toplam e-posta bütçesi — tüm site için.
+   * Resend ücretsiz planı günde 100 e-posta gönderir; kalan pay randevu bildirimleri ve hatırlatmalar içindir.
+   */
+  publicEmailsPerHour: { limit: 20, windowSeconds: 60 * 60 },
+  publicEmailsPerDay: { limit: 60, windowSeconds: 24 * 60 * 60 },
 } as const;
+
+/**
+ * Herkese açık bir formun e-posta göndermesine izin verilip verilmediği.
+ * Hesap var/yok fark etmeksizin her geçerli istekte tüketilir; böylece yanıt hesabın varlığını ele vermez.
+ * Farklı IP'lerden yapılan toplu isteklerin e-posta kotasını bitirip randevu e-postalarını durdurmasını önler.
+ */
+export async function consumePublicEmailBudget(): Promise<RateLimitResult> {
+  const [hour, day] = await Promise.all([
+    consumeRateLimit("email:public:hour", LIMITS.publicEmailsPerHour.limit, LIMITS.publicEmailsPerHour.windowSeconds),
+    consumeRateLimit("email:public:day", LIMITS.publicEmailsPerDay.limit, LIMITS.publicEmailsPerDay.windowSeconds),
+  ]);
+  return hour.ok ? day : hour;
+}
+
+export const EMAIL_BUDGET_EXHAUSTED_MESSAGE =
+  "Şu anda çok fazla istek alıyoruz. Lütfen bir süre sonra tekrar deneyin veya bize telefonla ulaşın.";
 
 export function tooManyRequestsMessage(retryAfterSeconds: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));

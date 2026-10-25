@@ -43,20 +43,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ip = getClientIp(request.headers);
         const emailKey = `login:email:${email}`;
 
-        // 1) IP başına toplam deneme sınırı (kaba kuvvet / credential stuffing)
-        const ipLimit = await consumeRateLimit(
-          `login:ip:${ip}`,
-          LIMITS.loginPerIp.limit,
-          LIMITS.loginPerIp.windowSeconds,
-        );
-        if (!ipLimit.ok) throw new TooManyAttemptsError();
-
-        // 2) Hesap başına başarısız deneme sınırı (farklı IP'lerden hedefli saldırı)
-        const emailLimit = await peekRateLimit(emailKey, LIMITS.loginFailuresPerEmail.limit);
-        if (!emailLimit.ok) throw new TooManyAttemptsError();
-
-        await connectDB();
-        const user = await User.findOne({ email }).select("+password").lean();
+        // Sınır kontrolleri ve kullanıcı sorgusu aynı anda yapılır (her biri ayrı bir veritabanı gidiş-dönüşü)
+        const [ipLimit, emailLimit, user] = await Promise.all([
+          // 1) IP başına toplam deneme sınırı (kaba kuvvet / credential stuffing)
+          consumeRateLimit(`login:ip:${ip}`, LIMITS.loginPerIp.limit, LIMITS.loginPerIp.windowSeconds),
+          // 2) Hesap başına başarısız deneme sınırı (farklı IP'lerden hedefli saldırı)
+          peekRateLimit(emailKey, LIMITS.loginFailuresPerEmail.limit),
+          connectDB().then(() => User.findOne({ email }).select("+password").lean()),
+        ]);
+        if (!ipLimit.ok || !emailLimit.ok) throw new TooManyAttemptsError();
 
         const isValid = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
         if (!user || !isValid) {

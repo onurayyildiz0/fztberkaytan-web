@@ -4,7 +4,14 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { sendAccountExistsEmail, sendVerificationEmail } from "@/lib/emails";
 import { isDuplicateKeyError, jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
-import { LIMITS, consumeRateLimit, getClientIp, tooManyRequestsMessage } from "@/lib/rate-limit";
+import {
+  EMAIL_BUDGET_EXHAUSTED_MESSAGE,
+  LIMITS,
+  consumePublicEmailBudget,
+  consumeRateLimit,
+  getClientIp,
+  tooManyRequestsMessage,
+} from "@/lib/rate-limit";
 import { CONSENT_VERSION, registerSchema, toFieldErrors } from "@/lib/validations/auth";
 import { VERIFICATION_TTL_HOURS, appBaseUrl, createVerificationLink } from "@/lib/verification";
 import User from "@/models/User";
@@ -38,6 +45,15 @@ export async function POST(request: Request) {
 
   const { name, email, password, phone } = parsed.data;
   const baseUrl = appBaseUrl(request);
+
+  const emailLimit = await consumeRateLimit(
+    `register:email:${email}`,
+    LIMITS.registerPerEmail.limit,
+    LIMITS.registerPerEmail.windowSeconds,
+  );
+  if (!emailLimit.ok) return jsonError(tooManyRequestsMessage(emailLimit.retryAfterSeconds), 429);
+  const budget = await consumePublicEmailBudget();
+  if (!budget.ok) return jsonError(EMAIL_BUDGET_EXHAUSTED_MESSAGE, 429);
 
   // Hash her durumda hesaplanır: yanıt süresi, adresin kayıtlı olup olmadığını ele vermesin
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);

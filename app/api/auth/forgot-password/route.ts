@@ -3,7 +3,14 @@ import { sendPasswordResetEmail } from "@/lib/emails";
 import { jsonError, readJson } from "@/lib/http";
 import { connectDB } from "@/lib/mongodb";
 import { PASSWORD_RESET_TTL_MINUTES, createPasswordResetLink } from "@/lib/password-reset";
-import { LIMITS, consumeRateLimit, getClientIp, tooManyRequestsMessage } from "@/lib/rate-limit";
+import {
+  EMAIL_BUDGET_EXHAUSTED_MESSAGE,
+  LIMITS,
+  consumePublicEmailBudget,
+  consumeRateLimit,
+  getClientIp,
+  tooManyRequestsMessage,
+} from "@/lib/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validations/auth";
 import { appBaseUrl } from "@/lib/verification";
 import User from "@/models/User";
@@ -34,6 +41,8 @@ export async function POST(request: Request) {
     LIMITS.passwordResetPerEmail.windowSeconds,
   );
   if (!emailLimit.ok) return jsonError(tooManyRequestsMessage(emailLimit.retryAfterSeconds), 429);
+  const budget = await consumePublicEmailBudget();
+  if (!budget.ok) return jsonError(EMAIL_BUDGET_EXHAUSTED_MESSAGE, 429);
 
   try {
     await connectDB();
