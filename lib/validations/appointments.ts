@@ -46,7 +46,7 @@ export const adminCreateAppointmentSchema = withValidOption(
     time,
     notes: z.string().trim().max(1000).optional().default(""),
     adminNotes: z.string().trim().max(2000).optional().default(""),
-    /** Müsaitlik takvimi dışında da ekle (yalnızca diğer randevularla çakışma kontrol edilir) */
+    /** Açık saatler dışında da ekle (yalnızca diğer randevularla çakışma kontrol edilir) */
     allowOutsideHours: z.boolean().optional().default(false),
     /** Hastaya bilgilendirme e-postası gönderilsin mi */
     notifyPatient: z.boolean().optional().default(true),

@@ -365,7 +365,7 @@ function Reschedule({ appointment, onDone }: { appointment: AdminAppointmentDTO;
             <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Müsait saatler yükleniyor...
           </p>
         ) : slots.length === 0 ? (
-          <p className="text-sm text-slate-500">Bu gün için müsaitlik takviminde boş saat yok.</p>
+          <p className="text-sm text-slate-500">Bu gün için boş saat yok (kapalı gün veya tüm saatler dolu).</p>
         ) : (
           <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto" role="radiogroup" aria-label="Müsait saatler">
             {slots.map((s) => (

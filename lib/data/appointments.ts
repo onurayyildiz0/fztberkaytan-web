@@ -3,15 +3,17 @@ import { Types } from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import {
   ACTIVE_STATUSES,
-  AVAILABILITY_STEP_MINUTES,
+  CLOSED_WEEKDAYS,
+  OPEN_HOURS,
   BOOKING_WINDOW_DAYS,
   SLOT_BLOCKING_STATUSES,
   SLOT_DURATION_MINUTES,
+  slotStepMinutes,
   type AdminAppointmentDTO,
   type AppointmentDTO,
 } from "@/lib/appointments";
 import { addDays, appointmentStartsAt, dateToKey, keyToDate, todayKey, type DateKey } from "@/lib/dates";
-import { deleteCalendarEvent, getAvailabilityBlocks, getBusyIntervals, upsertCalendarEvent } from "@/lib/google-calendar";
+import { deleteCalendarEvent, getBusyIntervals, upsertCalendarEvent } from "@/lib/google-calendar";
 import { serviceLabel } from "@/lib/services";
 import { siteConfig } from "@/lib/site";
 import Appointment, { type IAppointment } from "@/models/Appointment";
@@ -148,7 +150,7 @@ export async function findAdminAppointments(query: AppointmentQuery = {}): Promi
   return (await queryAppointments(query)).map(toAdminAppointmentDTO);
 }
 
-/* ---------- Müsaitlik (Google Takvim tabanlı) ---------- */
+/* ---------- Müsaitlik (açık saatler − dolu saatler) ---------- */
 
 export function isBookableDate(key: DateKey, now = new Date()): boolean {
   const today = todayKey(now);
@@ -187,19 +189,31 @@ type AvailabilityOptions = {
   excludeAppointmentId?: string;
 };
 
+export type DaySlot = { start: string; available: boolean };
+
+/** Gün klinik açık günlerinden mi (Pazar kapalı) */
+export function isOpenDay(key: DateKey): boolean {
+  return !CLOSED_WEEKDAYS.includes(new Date(`${key}T00:00:00Z`).getUTCDay());
+}
+
+function openInterval(key: DateKey): Interval | null {
+  if (!isOpenDay(key)) return null;
+  return { start: appointmentStartsAt(key, OPEN_HOURS.start), end: appointmentStartsAt(key, OPEN_HOURS.end) };
+}
+
 /**
- * Tarih aralığındaki her gün için randevuya uygun başlangıç saatleri ("SS:DD").
- * Kural: Başlangıç ve bitiş "Randevu Müsaitliği" takvimindeki bir bloğun içinde olmalı; ana takvimdeki
- * dolu etkinliklerle ve diğer randevularla çakışmamalı; geçmişte olmamalı. Başlangıçlar 15 dk aralıklıdır.
+ * Tarih aralığındaki her açık gün için tüm başlangıç saatleri ve dolu/boş durumu.
+ * Kural: Pazartesi–Cumartesi açık saatler içinde; başka randevu, bekleyen erteleme önerisi veya
+ * Google Takvim'deki meşgul bir etkinlikle çakışan saat "dolu"dur. Geçmiş saatler listelenmez.
  */
-export async function getAvailability(
+export async function getDaySlots(
   from: DateKey,
   to: DateKey,
   durationMinutes: number,
   options: AvailabilityOptions = {},
-): Promise<Map<DateKey, string[]>> {
+): Promise<Map<DateKey, DaySlot[]>> {
   const now = options.now ?? new Date();
-  const result = new Map<DateKey, string[]>();
+  const result = new Map<DateKey, DaySlot[]>();
   const today = todayKey(now);
   const first = from < today ? today : from;
   const last = options.admin ? to : [to, addDays(today, BOOKING_WINDOW_DAYS)].sort()[0]!;
@@ -207,33 +221,40 @@ export async function getAvailability(
 
   const rangeStart = dayStart(first);
   const rangeEnd = dayStart(addDays(last, 1));
-  const [blocks, busy, booked] = await Promise.all([
-    getAvailabilityBlocks(rangeStart, rangeEnd),
+  const [busy, booked] = await Promise.all([
     getBusyIntervals(rangeStart, rangeEnd),
     blockingIntervals(first, last, options.excludeAppointmentId),
   ]);
-  if (!blocks?.length) return result;
-
   const taken = [...busy, ...booked];
-  const step = AVAILABILITY_STEP_MINUTES * MINUTE;
+  const step = slotStepMinutes(durationMinutes) * MINUTE;
   const duration = durationMinutes * MINUTE;
 
-  for (const block of blocks) {
-    // İlk başlangıç: bloğun başlangıcından sonraki ilk 15 dakikalık saat
-    let t = Math.ceil(Math.max(block.start.getTime(), rangeStart.getTime()) / step) * step;
-    const blockEnd = Math.min(block.end.getTime(), rangeEnd.getTime());
-    for (; t + duration <= blockEnd; t += step) {
+  for (let key = first; key <= last; key = addDays(key, 1)) {
+    const open = openInterval(key);
+    if (!open) continue;
+    const slots: DaySlot[] = [];
+    for (let t = open.start.getTime(); t + duration <= open.end.getTime(); t += step) {
       const candidate = { start: new Date(t), end: new Date(t + duration) };
       if (candidate.start <= now) continue;
-      if (taken.some((i) => overlaps(i, candidate))) continue;
-      const { key, time } = toIstanbul(candidate.start);
-      if (key < first || key > last) continue;
-      const list = result.get(key) ?? [];
-      if (!list.includes(time)) list.push(time);
-      result.set(key, list);
+      slots.push({ start: toIstanbul(candidate.start).time, available: !taken.some((x) => overlaps(x, candidate)) });
     }
+    if (slots.length) result.set(key, slots);
   }
-  for (const [key, list] of result) result.set(key, list.sort());
+  return result;
+}
+
+/** Tarih aralığındaki her gün için yalnızca boş başlangıç saatleri ("SS:DD"); boş saati olmayan gün yer almaz. */
+export async function getAvailability(
+  from: DateKey,
+  to: DateKey,
+  durationMinutes: number,
+  options: AvailabilityOptions = {},
+): Promise<Map<DateKey, string[]>> {
+  const result = new Map<DateKey, string[]>();
+  for (const [key, slots] of await getDaySlots(from, to, durationMinutes, options)) {
+    const free = slots.filter((s) => s.available).map((s) => s.start);
+    if (free.length) result.set(key, free);
+  }
   return result;
 }
 
@@ -328,25 +349,28 @@ export async function syncAppointmentToGoogle(appointmentId: string): Promise<vo
   }
 }
 
-/* ---------- Takvim görünümü için müsaitlik blokları ---------- */
+/* ---------- Takvim görünümü ---------- */
 
 export type DayBlock = { start: string; end: string };
 
-/**
- * Tarih aralığındaki "Randevu Müsaitliği" bloklarını gün gün "SS:DD" olarak döndürür.
- * null: müsaitlik takvimi ayarlanmamış veya okunamadı.
- */
-export async function getAvailabilityBlocksByDay(from: DateKey, to: DateKey): Promise<Record<DateKey, DayBlock[]> | null> {
-  const blocks = await getAvailabilityBlocks(dayStart(from), dayStart(addDays(to, 1)));
-  if (!blocks) return null;
+/** Açık saatler, gün gün (Pazar boş) */
+export function openHoursByDay(from: DateKey, to: DateKey): Record<DateKey, DayBlock[]> {
   const byDay: Record<DateKey, DayBlock[]> = {};
-  for (const block of blocks) {
-    // Gece yarısını aşan blokları günlere böl
-    let cursor = block.start;
-    while (cursor < block.end) {
+  for (let key = from; key <= to; key = addDays(key, 1)) {
+    byDay[key] = isOpenDay(key) ? [{ start: OPEN_HOURS.start, end: OPEN_HOURS.end }] : [];
+  }
+  return byDay;
+}
+
+/** Aralıkları günlere bölüp "SS:DD" olarak döndürür (gece yarısını aşanlar ikiye ayrılır) */
+function splitByDay(intervals: Interval[], from: DateKey, to: DateKey): Record<DateKey, DayBlock[]> {
+  const byDay: Record<DateKey, DayBlock[]> = {};
+  for (const interval of intervals) {
+    let cursor = interval.start;
+    while (cursor < interval.end) {
       const { key, time } = toIstanbul(cursor);
       const nextMidnight = dayStart(addDays(key, 1));
-      const segmentEnd = block.end < nextMidnight ? block.end : nextMidnight;
+      const segmentEnd = interval.end < nextMidnight ? interval.end : nextMidnight;
       const endTime = segmentEnd.getTime() === nextMidnight.getTime() ? "24:00" : toIstanbul(segmentEnd).time;
       if (key >= from && key <= to) (byDay[key] ??= []).push({ start: time, end: endTime });
       cursor = segmentEnd;
@@ -354,4 +378,9 @@ export async function getAvailabilityBlocksByDay(from: DateKey, to: DateKey): Pr
   }
   for (const key of Object.keys(byDay)) byDay[key]!.sort((a, b) => a.start.localeCompare(b.start));
   return byDay;
+}
+
+/** Google Takvim'deki meşgul etkinlikler, gün gün (randevu etkinlikleri hariç) */
+export async function getGoogleBusyByDay(from: DateKey, to: DateKey): Promise<Record<DateKey, DayBlock[]>> {
+  return splitByDay(await getBusyIntervals(dayStart(from), dayStart(addDays(to, 1))), from, to);
 }

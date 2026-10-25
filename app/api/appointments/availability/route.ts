@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requirePatientApi } from "@/lib/auth/guards";
-import { getAvailability, makeTimeSlot } from "@/lib/data/appointments";
+import { getAvailability, getDaySlots, makeTimeSlot } from "@/lib/data/appointments";
 import { addDays, isDateKey, monthRange } from "@/lib/dates";
 import { jsonError } from "@/lib/http";
 import { isServiceName, isValidServiceOption, serviceDurationMinutes } from "@/lib/services";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/appointments/availability?service=..&option=..&date=YYYY-MM-DD → o günün boş saatleri
+ * GET /api/appointments/availability?service=..&option=..&date=YYYY-MM-DD → o günün saatleri (dolu olanlar available:false)
  * GET /api/appointments/availability?service=..&option=..&month=YYYY-MM  → ayın müsait günleri
  * Süre seçilen hizmete göre hesaplanır.
  */
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
 
   const date = sp.get("date");
   if (!isDateKey(date)) return jsonError("Geçerli bir tarih gönderin (YYYY-MM-DD).", 400);
-  const starts = (await getAvailability(date, date, duration)).get(date) ?? [];
+  const slots = (await getDaySlots(date, date, duration)).get(date) ?? [];
   return NextResponse.json({
     date,
     durationMinutes: duration,
-    slots: starts.map((start) => ({ start, label: makeTimeSlot(start, duration) })),
+    slots: slots.map((s) => ({ start: s.start, label: makeTimeSlot(s.start, duration), available: s.available })),
   });
 }

@@ -77,8 +77,16 @@ export type CancelledBy = (typeof CANCELLED_BY)[number];
 
 /** Eski kayıtlar ve süresi bilinmeyen hizmetler için varsayılan seans süresi */
 export const SLOT_DURATION_MINUTES = 60;
-/** Müsaitlik bloklarında randevu başlangıçları bu aralıklarla önerilir (dakika) */
-export const AVAILABILITY_STEP_MINUTES = 15;
+/** Klinik açık saatleri (İstanbul saati). Bu saatler dışında online randevu alınamaz. */
+export const OPEN_HOURS = { start: "09:00", end: "22:00" } as const;
+/** Kapalı günler (0 = Pazar … 6 = Cumartesi) */
+export const CLOSED_WEEKDAYS: readonly number[] = [0];
+export const OPEN_HOURS_LABEL = `Pazartesi–Cumartesi ${OPEN_HOURS.start}–${OPEN_HOURS.end} (Pazar kapalı)`;
+
+/** Randevu başlangıç aralığı: uzun seanslar saat başı, kısa seanslar yarım saatte bir (dakika) */
+export function slotStepMinutes(durationMinutes: number): number {
+  return durationMinutes >= 45 ? 60 : 30;
+}
 /** Bugünden itibaren kaç gün sonrasına randevu alınabilir (hasta) */
 export const BOOKING_WINDOW_DAYS = 60;
 /** Bir hastanın aynı anda sahip olabileceği en fazla aktif (bekleyen/onaylı) online randevu */

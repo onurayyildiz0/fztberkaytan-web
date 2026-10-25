@@ -7,8 +7,7 @@ import { createSign } from "node:crypto";
  * Kurulum: Google Cloud'da servis hesabı oluşturulur, Calendar API açılır ve fizyoterapistin
  * takvimi "Etkinliklerde değişiklik yapma" yetkisiyle servis hesabının e-postasıyla paylaşılır.
  * Ortam değişkenleri: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY,
- *   GOOGLE_CALENDAR_ID (randevuların yazıldığı ve dolu saatlerin okunduğu ana takvim),
- *   GOOGLE_AVAILABILITY_CALENDAR_ID (fizyoterapistin müsait olduğu blokları çizdiği "Randevu Müsaitliği" takvimi)
+ *   GOOGLE_CALENDAR_ID (randevuların yazıldığı ve dolu saatlerin okunduğu takvim).
  *
  * Bu modül hata fırlatmaz: Google'a ulaşılamazsa randevu sistemi takvimsiz çalışmaya devam eder.
  */
@@ -155,27 +154,6 @@ export async function getBusyIntervals(timeMin: Date, timeMax: Date): Promise<Bu
   }
 }
 
-/**
- * "Randevu Müsaitliği" takvimindeki bloklar: hastalar yalnızca bu aralıklar içinde randevu alabilir.
- * Takvim ayarlanmamışsa veya Google'a ulaşılamazsa null döner (müsaitlik yok kabul edilir).
- */
-export async function getAvailabilityBlocks(timeMin: Date, timeMax: Date): Promise<BusyInterval[] | null> {
-  const config = getConfig();
-  const availabilityId = process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
-  if (!config || !availabilityId) return null;
-  try {
-    const events = await listEvents(config, availabilityId, timeMin, timeMax);
-    return events.map(eventInterval).filter((i): i is BusyInterval => i !== null);
-  } catch (error) {
-    console.error("[google-calendar] Müsaitlik takvimi okunamadı:", error);
-    return null;
-  }
-}
-
-export function isAvailabilityCalendarConfigured(): boolean {
-  return getConfig() !== null && !!process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
-}
-
 export function clearBusyCache() {
   eventsCache.clear();
 }
@@ -265,26 +243,14 @@ async function testCalendar(config: Config, calendarId: string): Promise<{ ok: b
   };
 }
 
-/** Bağlantı testi (admin paneli için): ana takvim + müsaitlik takvimi */
-export async function testGoogleCalendar(): Promise<{ ok: boolean; message: string; availabilityOk: boolean }> {
+/** Bağlantı testi (admin paneli için) */
+export async function testGoogleCalendar(): Promise<{ ok: boolean; message: string }> {
   const config = getConfig();
-  if (!config) return { ok: false, availabilityOk: false, message: "Google Takvim ayarları yapılmamış." };
+  if (!config) return { ok: false, message: "Google Takvim ayarları yapılmamış." };
   try {
     const main = await testCalendar(config, config.calendarId);
-    if (!main.ok) return { ok: false, availabilityOk: false, message: `Ana takvim: ${main.error}` };
-    const availabilityId = process.env.GOOGLE_AVAILABILITY_CALENDAR_ID?.trim();
-    if (!availabilityId) {
-      return {
-        ok: true,
-        availabilityOk: false,
-        message: `Bağlı: ${main.summary}. Müsaitlik takvimi ayarlanmamış (GOOGLE_AVAILABILITY_CALENDAR_ID).`,
-      };
-    }
-    const avail = await testCalendar(config, availabilityId);
-    return avail.ok
-      ? { ok: true, availabilityOk: true, message: `Bağlı: ${main.summary} · Müsaitlik: ${avail.summary}` }
-      : { ok: true, availabilityOk: false, message: `Ana takvim bağlı; müsaitlik takvimi: ${avail.error}` };
+    return main.ok ? { ok: true, message: `Bağlı: ${main.summary}` } : { ok: false, message: main.error ?? "Takvime erişilemedi." };
   } catch (error) {
-    return { ok: false, availabilityOk: false, message: error instanceof Error ? error.message : "Bağlantı kurulamadı." };
+    return { ok: false, message: error instanceof Error ? error.message : "Bağlantı kurulamadı." };
   }
 }

@@ -14,8 +14,10 @@ type DayBlock = { start: string; end: string };
 type Props = {
   weekStart: DateKey;
   appointments: AdminAppointmentDTO[];
-  /** Google "Randevu Müsaitliği" blokları; null = takvim bağlı değil */
-  availability: Record<DateKey, DayBlock[]> | null;
+  /** Klinik açık saatleri (gün gün; Pazar boş) */
+  openHours: Record<DateKey, DayBlock[]>;
+  /** Google Takvim'deki meşgul etkinlikler (randevu etkinlikleri hariç) */
+  busy: Record<DateKey, DayBlock[]>;
 };
 
 const HOUR_HEIGHT = 64; // px
@@ -28,7 +30,7 @@ const rangeOf = (timeSlot: string) => {
   return { start, end };
 };
 
-export default function WeekCalendar({ weekStart, appointments, availability }: Props) {
+export default function WeekCalendar({ weekStart, appointments, openHours, busy }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = appointments.find((a) => a.id === selectedId) ?? null;
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -38,9 +40,9 @@ export default function WeekCalendar({ weekStart, appointments, availability }: 
     .filter((a) => a.proposal && (a.status === "pending" || a.status === "approved"))
     .map((a) => ({ appointment: a, date: a.proposal!.date, timeSlot: a.proposal!.timeSlot }));
 
-  // Saat aralığı: müsaitlik, randevular ve öneriler kapsanır (varsayılan 08:00 – 20:00)
+  // Saat aralığı: açık saatler, randevular ve öneriler kapsanır (varsayılan 08:00 – 20:00)
   const ranges = [
-    ...Object.values(availability ?? {}).flat().map((b) => ({ start: toMinutes(b.start), end: toMinutes(b.end) })),
+    ...Object.values(openHours).flat().map((b) => ({ start: toMinutes(b.start), end: toMinutes(b.end) })),
     ...appointments.map((a) => rangeOf(a.timeSlot)),
     ...proposals.map((p) => rangeOf(p.timeSlot)),
   ];
@@ -85,7 +87,7 @@ export default function WeekCalendar({ weekStart, appointments, availability }: 
           </div>
 
           {days.map((key) => {
-            const blocks = availability?.[key] ?? [];
+            const blocks = openHours[key] ?? [];
             const isPastDay = key < today;
             return (
               <div key={key} className="relative border-l border-slate-200 bg-slate-50/60" style={{ height: hours.length * HOUR_HEIGHT }}>
@@ -93,28 +95,44 @@ export default function WeekCalendar({ weekStart, appointments, availability }: 
                   <div key={h} className="absolute inset-x-0 border-t border-slate-100" style={{ top: i * HOUR_HEIGHT }} />
                 ))}
 
-                {/* Google Takvim müsaitlik blokları → tıklayınca yeni randevu */}
-                {blocks.map((b, i) => {
+                {/* Açık saatler: her saat dilimi tıklanınca o saate yeni randevu */}
+                {blocks.flatMap((b) => {
+                  const cells = [];
+                  for (let m = toMinutes(b.start); m < toMinutes(b.end); m += 60) {
+                    const time = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+                    const style = { top: top(m), height: HOUR_HEIGHT };
+                    cells.push(
+                      isPastDay ? (
+                        <div key={time} className="absolute inset-x-0 bg-emerald-50/50" style={style} />
+                      ) : (
+                        <Link
+                          key={time}
+                          href={`/admin/randevular/yeni?tarih=${key}&saat=${time}`}
+                          title={`${time} · yeni randevu`}
+                          className="group absolute inset-x-0 border-t border-emerald-100 bg-emerald-50/70 transition hover:bg-emerald-100"
+                          style={style}
+                        >
+                          <Plus className="absolute top-1 right-1.5 size-3.5 text-emerald-700 opacity-0 group-hover:opacity-100" aria-hidden="true" />
+                        </Link>
+                      ),
+                    );
+                  }
+                  return cells;
+                })}
+
+                {/* Google Takvim'deki meşgul etkinlikler (o saatler hastalara kapalı) */}
+                {(busy[key] ?? []).map((b, i) => {
                   const start = toMinutes(b.start);
                   const end = toMinutes(b.end);
-                  const body = (
-                    <span className="absolute top-1 left-1.5 text-[10px] font-semibold text-emerald-700 opacity-70 group-hover:opacity-100">
-                      Müsait {b.start}–{b.end === "24:00" ? "24:00" : b.end}
-                    </span>
-                  );
-                  const style = { top: top(start), height: Math.max(((end - start) / 60) * HOUR_HEIGHT, 8) };
-                  return isPastDay ? (
-                    <div key={i} className="absolute inset-x-0 bg-emerald-50/70" style={style} />
-                  ) : (
-                    <Link
-                      key={i}
-                      href={`/admin/randevular/yeni?tarih=${key}&saat=${b.start}`}
-                      title={`${b.start}–${b.end} müsait · yeni randevu`}
-                      className="group absolute inset-x-0 border-y border-emerald-200 bg-emerald-50 transition hover:bg-emerald-100"
-                      style={style}
+                  return (
+                    <div
+                      key={`b-${i}`}
+                      title={`Google Takvim'de meşgul: ${b.start}–${b.end}`}
+                      className="pointer-events-none absolute inset-x-0 z-[1] bg-[repeating-linear-gradient(135deg,var(--color-slate-200)_0_6px,var(--color-slate-100)_6px_12px)] opacity-90"
+                      style={{ top: top(start), height: Math.max(((end - start) / 60) * HOUR_HEIGHT, 6) }}
                     >
-                      {body}
-                    </Link>
+                      <span className="absolute top-1 left-1.5 text-[10px] font-semibold text-slate-600">Meşgul {b.start}–{b.end}</span>
+                    </div>
                   );
                 })}
 
@@ -171,7 +189,8 @@ export default function WeekCalendar({ weekStart, appointments, availability }: 
       <div className="space-y-4 lg:hidden">
         {days.map((key) => {
           const items = byDay(key);
-          const blocks = availability?.[key] ?? [];
+          const blocks = openHours[key] ?? [];
+          const busyBlocks = busy[key] ?? [];
           const label = WEEKDAYS.find((w) => w.value === dayOfWeek(key))!.label;
           return (
             <section key={key} className={`rounded-2xl bg-white shadow-sm ring-1 ${key === today ? "ring-teal-300" : "ring-slate-200"}`}>
@@ -185,11 +204,14 @@ export default function WeekCalendar({ weekStart, appointments, availability }: 
                   </Link>
                 )}
               </div>
-              {blocks.length > 0 && (
-                <p className="border-b border-slate-100 px-4 py-2 text-xs text-emerald-700">
-                  Müsait: {blocks.map((b) => `${b.start}–${b.end}`).join(", ")}
-                </p>
-              )}
+              <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-600">
+                {blocks.length ? (
+                  <span className="text-emerald-700">Açık: {blocks.map((b) => `${b.start}–${b.end}`).join(", ")}</span>
+                ) : (
+                  "Kapalı"
+                )}
+                {busyBlocks.length > 0 && <> · Takvimde meşgul: {busyBlocks.map((b) => `${b.start}–${b.end}`).join(", ")}</>}
+              </p>
               {items.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-slate-400">Randevu yok</p>
               ) : (
@@ -228,7 +250,8 @@ export function CalendarLegend() {
     ["Tamamlandı", "border-l-4 border-slate-400 bg-slate-100"],
     ["Gelmedi", "border-l-4 border-orange-400 bg-orange-50"],
     ["Erteleme önerisi", "border-2 border-dashed border-amber-400 bg-amber-50"],
-    ["Müsait (Google)", "border border-emerald-200 bg-emerald-50"],
+    ["Açık saat", "border border-emerald-200 bg-emerald-50"],
+    ["Google'da meşgul", "bg-slate-200"],
   ];
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">

@@ -192,7 +192,7 @@ export default function NewAppointmentForm({ initialPatient, initialDate, initia
               </p>
             ) : slots.length === 0 ? (
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                Bu gün için Google müsaitlik takviminde uygun boş saat yok. Gerekirse aşağıdan özel saat seçebilirsiniz.
+                Bu gün için boş saat yok (kapalı gün veya tüm saatler dolu). Gerekirse aşağıdan özel saat seçebilirsiniz.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Müsait saatler">

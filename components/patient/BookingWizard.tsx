@@ -10,7 +10,7 @@ import { Card } from "@/components/panel/ui";
 import { formatDateLong, type DateKey } from "@/lib/dates";
 import { SERVICES, getService, serviceDurationMinutes, serviceLabel, type ServiceName } from "@/lib/services";
 
-type Slot = { start: string; label: string };
+type Slot = { start: string; label: string; available: boolean };
 
 type BookingWizardProps = {
   initialService: ServiceName | null;
@@ -93,7 +93,7 @@ export default function BookingWizard({ initialService, minDate, maxDate }: Book
 
   const onMonthChange = useCallback((m: string) => setMonth(m), []);
 
-  const selectedSlot = slots.find((s) => s.start === time) ?? null;
+  const selectedSlot = slots.find((s) => s.start === time && s.available) ?? null;
   const notesValid = notes.trim().length >= NOTE_MIN && notes.length <= NOTE_MAX;
   const canContinue = [serviceReady, date !== null && selectedSlot !== null, notesValid, true][step];
   const label = service ? serviceLabel(service, option) : "";
@@ -289,28 +289,40 @@ export default function BookingWizard({ initialService, minDate, maxDate }: Book
                         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Müsait saatler yükleniyor...
                       </p>
                     ) : slots.length === 0 ? (
-                      <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Bu gün için boş saat kalmadı. Lütfen başka bir gün seçin.</p>
+                      <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">Bu gün randevuya kapalı. Lütfen başka bir gün seçin.</p>
                     ) : (
+                      <>
+                      {!slots.some((s) => s.available) && (
+                        <p className="mb-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">Bu günün tüm saatleri dolu. Lütfen başka bir gün seçin.</p>
+                      )}
                       <div className="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1" role="radiogroup" aria-label="Müsait saatler">
                         {slots.map((slot) => {
-                          const active = time === slot.start;
+                          const active = slot.available && time === slot.start;
                           return (
                             <button
                               key={slot.start}
                               type="button"
                               role="radio"
                               aria-checked={active}
+                              disabled={!slot.available}
+                              aria-label={slot.available ? slot.label : `${slot.label} (dolu)`}
                               onClick={() => setTime(slot.start)}
                               className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium tabular-nums ring-1 transition ${
-                                active ? "bg-teal-700 text-white ring-teal-700" : "bg-white text-slate-700 ring-slate-200 hover:ring-teal-400"
+                                !slot.available
+                                  ? "cursor-not-allowed bg-slate-100 text-slate-400 ring-slate-200"
+                                  : active
+                                    ? "bg-teal-700 text-white ring-teal-700"
+                                    : "bg-white text-slate-700 ring-slate-200 hover:ring-teal-400"
                               }`}
                             >
                               <Clock className="size-4" aria-hidden="true" />
-                              {slot.label}
+                              {slot.available ? slot.label : <span className="line-through">{slot.label}</span>}
+                              {!slot.available && <span className="text-xs font-semibold no-underline">Dolu</span>}
                             </button>
                           );
                         })}
                       </div>
+                      </>
                     )}
                   </>
                 )}

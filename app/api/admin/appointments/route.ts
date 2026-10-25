@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       const available = await getAvailableStarts(date, durationMinutes, { admin: true });
       if (!available.includes(time)) {
         return jsonError(
-          "Bu saat müsait değil (Müsaitlik takviminde blok yok, başka randevu ya da Google Takvim'de etkinlik var). Yine de eklemek için 'Müsaitlik dışında ekle' seçeneğini kullanın.",
+          "Bu saat müsait değil (açık saatler dışında, başka randevu ya da Google Takvim'de etkinlik var). Yine de eklemek için 'Müsaitlik dışında ekle' seçeneğini kullanın.",
           409,
           { code: "SLOT_UNAVAILABLE" },
         );

@@ -5,7 +5,7 @@ import GoogleCalendarStatus from "@/components/admin/GoogleCalendarStatus";
 import WeekCalendar, { CalendarLegend } from "@/components/admin/WeekCalendar";
 import { AdminPageHeader } from "@/components/admin/ui";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { findAdminAppointments, getAvailabilityBlocksByDay } from "@/lib/data/appointments";
+import { findAdminAppointments, getGoogleBusyByDay, openHoursByDay } from "@/lib/data/appointments";
 import { addDays, formatDateShort, isDateKey, startOfWeek, todayKey } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Takvim" };
@@ -23,7 +23,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   const weekStart = startOfWeek(isDateKey(tarih) ? tarih : today);
   const weekEnd = addDays(weekStart, 7);
 
-  const [appointments, availability] = await Promise.all([
+  const [appointments, busy] = await Promise.all([
     findAdminAppointments({
       from: weekStart,
       to: weekEnd,
@@ -31,8 +31,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
       // Başka haftadaki randevuların bu haftaya önerilen yeni saatleri de görünsün
       includeProposals: true,
     }),
-    getAvailabilityBlocksByDay(weekStart, addDays(weekStart, 6)),
+    getGoogleBusyByDay(weekStart, addDays(weekStart, 6)),
   ]);
+  const openHours = openHoursByDay(weekStart, addDays(weekStart, 6));
   const qs = (week: string, cancelled = showCancelled) => `/admin/takvim?tarih=${week}${cancelled ? "&iptaller=1" : ""}`;
   const pending = appointments.filter((a) => a.status === "pending").length;
 
@@ -84,15 +85,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         </div>
       </div>
 
-      {availability === null && (
-        <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
-          Google &quot;Randevu Müsaitliği&quot; takvimi bağlı değil; hastalar şu an online randevu alamaz.{" "}
-          <a href="/admin/musaitlik" className="font-semibold underline">
-            Kurulum adımları
-          </a>
-        </p>
-      )}
-      <WeekCalendar weekStart={weekStart} appointments={appointments} availability={availability} />
+      <WeekCalendar weekStart={weekStart} appointments={appointments} openHours={openHours} busy={busy} />
     </>
   );
 }
