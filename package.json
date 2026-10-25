@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "admin:password": "node --env-file=.env.local scripts/set-admin-password.mjs",
-    "migrate:patients": "node --env-file=.env.local scripts/migrate-patients.mjs"
+    "migrate:patients": "node --env-file=.env.local scripts/migrate-patients.mjs",
+    "email:test": "node --env-file=.env.local scripts/test-email.mjs",
+    "google:key": "node scripts/google-key-to-env.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
