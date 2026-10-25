@@ -108,7 +108,7 @@ export default async function AvailabilityPage() {
                     {count > 0 && <span className="block text-xs text-slate-500">{count} randevu</span>}
                     {dayBusy.length > 0 && (
                       <span className="block text-xs text-slate-500">
-                        Takvimde meşgul: {dayBusy.map((b) => `${b.start}–${b.end}`).join(", ")}
+                        {dayBusy.map((b) => `${b.start} ${b.title ?? "Meşgul"}`).join(", ")}
                       </span>
                     )}
                   </span>

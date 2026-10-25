@@ -351,7 +351,7 @@ export async function syncAppointmentToGoogle(appointmentId: string): Promise<vo
 
 /* ---------- Takvim görünümü ---------- */
 
-export type DayBlock = { start: string; end: string };
+export type DayBlock = { start: string; end: string; title?: string };
 
 /** Açık saatler, gün gün (Pazar boş) */
 export function openHoursByDay(from: DateKey, to: DateKey): Record<DateKey, DayBlock[]> {
@@ -363,7 +363,7 @@ export function openHoursByDay(from: DateKey, to: DateKey): Record<DateKey, DayB
 }
 
 /** Aralıkları günlere bölüp "SS:DD" olarak döndürür (gece yarısını aşanlar ikiye ayrılır) */
-function splitByDay(intervals: Interval[], from: DateKey, to: DateKey): Record<DateKey, DayBlock[]> {
+function splitByDay(intervals: (Interval & { title?: string })[], from: DateKey, to: DateKey): Record<DateKey, DayBlock[]> {
   const byDay: Record<DateKey, DayBlock[]> = {};
   for (const interval of intervals) {
     let cursor = interval.start;
@@ -372,7 +372,7 @@ function splitByDay(intervals: Interval[], from: DateKey, to: DateKey): Record<D
       const nextMidnight = dayStart(addDays(key, 1));
       const segmentEnd = interval.end < nextMidnight ? interval.end : nextMidnight;
       const endTime = segmentEnd.getTime() === nextMidnight.getTime() ? "24:00" : toIstanbul(segmentEnd).time;
-      if (key >= from && key <= to) (byDay[key] ??= []).push({ start: time, end: endTime });
+      if (key >= from && key <= to) (byDay[key] ??= []).push({ start: time, end: endTime, title: interval.title });
       cursor = segmentEnd;
     }
   }
@@ -380,7 +380,7 @@ function splitByDay(intervals: Interval[], from: DateKey, to: DateKey): Record<D
   return byDay;
 }
 
-/** Google Takvim'deki meşgul etkinlikler, gün gün (randevu etkinlikleri hariç) */
+/** Google Takvim'deki meşgul etkinlikler, gün gün, başlıklarıyla (randevu etkinlikleri hariç). Yalnızca admin içindir. */
 export async function getGoogleBusyByDay(from: DateKey, to: DateKey): Promise<Record<DateKey, DayBlock[]>> {
   return splitByDay(await getBusyIntervals(dayStart(from), dayStart(addDays(to, 1))), from, to);
 }

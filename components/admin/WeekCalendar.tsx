@@ -9,7 +9,7 @@ import { STATUS_BLOCK_CLASSES, type AdminAppointmentDTO } from "@/lib/appointmen
 import { WEEKDAYS, addDays, dayOfWeek, formatDateShort, nowMinutes, timeToMinutes, todayKey, type DateKey } from "@/lib/dates";
 import { serviceLabel } from "@/lib/services";
 
-type DayBlock = { start: string; end: string };
+type DayBlock = { start: string; end: string; title?: string };
 
 type Props = {
   weekStart: DateKey;
@@ -127,11 +127,13 @@ export default function WeekCalendar({ weekStart, appointments, openHours, busy 
                   return (
                     <div
                       key={`b-${i}`}
-                      title={`Google Takvim'de meşgul: ${b.start}–${b.end}`}
+                      title={`${b.title ?? "Meşgul"} · ${b.start}–${b.end} (Google Takvim)`}
                       className="pointer-events-none absolute inset-x-0 z-[1] bg-[repeating-linear-gradient(135deg,var(--color-slate-200)_0_6px,var(--color-slate-100)_6px_12px)] opacity-90"
                       style={{ top: top(start), height: Math.max(((end - start) / 60) * HOUR_HEIGHT, 6) }}
                     >
-                      <span className="absolute top-1 left-1.5 text-[10px] font-semibold text-slate-600">Meşgul {b.start}–{b.end}</span>
+                      <span className="absolute inset-x-1.5 top-1 truncate text-[10px] font-semibold text-slate-700">
+                        {b.start} {b.title ?? "Meşgul"}
+                      </span>
                     </div>
                   );
                 })}
@@ -210,7 +212,7 @@ export default function WeekCalendar({ weekStart, appointments, openHours, busy 
                 ) : (
                   "Kapalı"
                 )}
-                {busyBlocks.length > 0 && <> · Takvimde meşgul: {busyBlocks.map((b) => `${b.start}–${b.end}`).join(", ")}</>}
+                {busyBlocks.length > 0 && <> · Takvimde: {busyBlocks.map((b) => `${b.start} ${b.title ?? "Meşgul"}`).join(", ")}</>}
               </p>
               {items.length === 0 ? (
                 <p className="px-4 py-3 text-sm text-slate-400">Randevu yok</p>
@@ -251,7 +253,7 @@ export function CalendarLegend() {
     ["Gelmedi", "border-l-4 border-orange-400 bg-orange-50"],
     ["Erteleme önerisi", "border-2 border-dashed border-amber-400 bg-amber-50"],
     ["Açık saat", "border border-emerald-200 bg-emerald-50"],
-    ["Google'da meşgul", "bg-slate-200"],
+    ["Google Takvim etkinliği", "bg-slate-200"],
   ];
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">

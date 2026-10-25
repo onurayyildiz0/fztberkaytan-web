@@ -81,10 +81,12 @@ const calendarPath = (config: Config) => `/calendars/${encodeURIComponent(config
 
 /* ---------- Takvim etkinliklerinin okunması ---------- */
 
-export type BusyInterval = { start: Date; end: Date };
+/** title: etkinlik başlığı (ör. hasta adı) — yalnızca admin görünümlerinde kullanılır, hastalara gönderilmez */
+export type BusyInterval = { start: Date; end: Date; title?: string };
 
 type RawEvent = {
   status?: string;
+  summary?: string;
   transparency?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
@@ -100,8 +102,9 @@ function allDayToDate(key: string): Date {
 }
 
 function eventInterval(e: RawEvent): BusyInterval | null {
-  if (e.start?.dateTime && e.end?.dateTime) return { start: new Date(e.start.dateTime), end: new Date(e.end.dateTime) };
-  if (e.start?.date && e.end?.date) return { start: allDayToDate(e.start.date), end: allDayToDate(e.end.date) };
+  const title = e.summary?.trim() || undefined;
+  if (e.start?.dateTime && e.end?.dateTime) return { start: new Date(e.start.dateTime), end: new Date(e.end.dateTime), title };
+  if (e.start?.date && e.end?.date) return { start: allDayToDate(e.start.date), end: allDayToDate(e.end.date), title };
   return null;
 }
 
