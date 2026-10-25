@@ -8,30 +8,6 @@ import User from "@/models/User";
 
 export type LeanPatient = IPatient & { _id: Types.ObjectId };
 
-export type PatientDTO = {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  notes: string;
-  source: IPatient["source"];
-  hasAccount: boolean;
-  createdAt: string;
-};
-
-export function toPatientDTO(p: LeanPatient): PatientDTO {
-  return {
-    id: p._id.toString(),
-    name: p.name,
-    phone: p.phone ?? null,
-    email: p.email ?? null,
-    notes: p.notes ?? "",
-    source: p.source,
-    hasAccount: !!p.userId,
-    createdAt: p.createdAt.toISOString(),
-  };
-}
-
 /**
  * Giriş yapan hastanın kartını döndürür; yoksa oluşturur.
  *

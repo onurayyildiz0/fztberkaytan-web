@@ -74,22 +74,6 @@ export function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
-export function minutesToTime(total: number): string {
-  const h = Math.floor(total / 60) % 24;
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-/** "10:00" → "10:00 - 11:00" */
-export function slotLabel(start: string, durationMinutes: number): string {
-  return `${start} - ${minutesToTime(timeToMinutes(start) + durationMinutes)}`;
-}
-
-/** "10:00 - 11:00" → "10:00" */
-export function slotStart(label: string): string {
-  return label.split(" - ")[0] ?? label;
-}
-
 export function monthRange(key: DateKey): { start: DateKey; end: DateKey } {
   const [y, m] = key.split("-").map(Number);
   const start = new Date(Date.UTC(y, m - 1, 1));

@@ -139,10 +139,10 @@ const sections: LegalSection[] = [
           head={["Altyapı", "Amaç ve veri kapsamı"]}
           rows={[
             [
-              <Term key="k">Hosting</Term>,
+              <Term key="k">Barındırma (Vercel)</Term>,
               <span key="v">
-                Sitenin çalışması, isteklerin işlenmesi ve gerekli teknik kayıtların tutulması.{" "}
-                <span className="font-semibold text-amber-700">[Sağlayıcının adı yayın öncesi eklenecek]</span>
+                Sitenin çalışması, isteklerin işlenmesi ve gerekli teknik kayıtların tutulması. Site Vercel Inc. altyapısında
+                barındırılır.
               </span>,
             ],
             [

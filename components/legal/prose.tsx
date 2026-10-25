@@ -33,10 +33,6 @@ export function Note({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl bg-teal-50 px-4 py-3 text-sm leading-6 text-teal-900 ring-1 ring-teal-100">{children}</div>;
 }
 
-export function SubTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="pt-2 font-semibold text-slate-900">{children}</h3>;
-}
-
 export function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="overflow-x-auto rounded-xl ring-1 ring-slate-200">

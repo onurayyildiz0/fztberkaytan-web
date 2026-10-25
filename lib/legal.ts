@@ -10,10 +10,9 @@ export const LEGAL_LAST_UPDATED = "25 Ekim 2026";
  * admin Genel Bakış'ta liste dolu olduğu sürece uyarı gösterilir.
  */
 export const LEGAL_PENDING_ITEMS = [
-  { page: "KVKK Aydınlatma Metni", item: "Barındırma (hosting) sağlayıcısının adı" },
   {
     page: "KVKK Aydınlatma Metni",
-    item: "Yurt dışı aktarım: verilerin tutulduğu ülkeler ve fiilen kurulmuş KVKK m.9 dayanağı (standart sözleşme vb.)",
+    item: "Yurt dışı aktarım: verilerin tutulduğu ülkeler ve fiilen kurulmuş KVKK m.9 dayanağı (standart sözleşme vb.) — avukat ve Berkay Bey tarafından tamamlanacak",
   },
   { page: "Tüm yasal metinler", item: "Son güncelleme tarihinin gerçek yayın tarihiyle güncellenmesi" },
 ] as const;

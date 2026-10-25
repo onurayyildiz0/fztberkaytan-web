@@ -95,7 +95,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="tr" className={inter.variable}>
+    <html lang="tr" className={inter.variable} data-scroll-behavior="smooth">
       <body className="font-sans antialiased">
         <script
           type="application/ld+json"
