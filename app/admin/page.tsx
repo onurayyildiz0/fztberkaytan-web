@@ -2,23 +2,16 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
-  BookOpenCheck,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
   CalendarPlus,
   CalendarRange,
   ClipboardX,
-  FileWarning,
   Hourglass,
-  Package,
-  Receipt,
-  Repeat,
   UserPlus,
   UserRound,
   Users,
-  Wallet,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 import AppointmentList from "@/components/admin/AppointmentList";
@@ -42,7 +35,7 @@ const MONTHS = [
   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
 ];
 
-type QuickAction = { label: string; icon: LucideIcon; href?: string; primary?: boolean };
+type QuickAction = { label: string; icon: LucideIcon; href: string; primary?: boolean };
 
 const QUICK_ACTIONS: QuickAction[] = [
   { label: "Yeni Randevu", icon: CalendarPlus, href: "/admin/randevular/yeni", primary: true },
@@ -50,10 +43,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: "Takvim", icon: CalendarRange, href: "/admin/takvim" },
   { label: "Randevular", icon: CalendarDays, href: "/admin/randevular" },
   { label: "Müsaitlik", icon: CalendarClock, href: "/admin/musaitlik" },
-  { label: "Randevusuz / Hızlı Seans", icon: Zap },
-  { label: "Gelir – Gider", icon: Receipt },
-  { label: "Sabit Giderler", icon: Repeat },
-  { label: "Muhasebe Arşivi", icon: BookOpenCheck },
 ];
 
 function parseMonth(value: string | undefined, fallback: string): string {
@@ -147,7 +136,7 @@ export default async function AdminOverviewPage({
       )}
 
       {/* KPI kartları */}
-      <section aria-label="Özet göstergeler" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      <section aria-label="Özet göstergeler" className="grid gap-4 sm:grid-cols-2">
         <KpiCard
           label="Bugünkü Hasta"
           value={todaysPatients}
@@ -163,39 +152,23 @@ export default async function AdminOverviewPage({
           tone="amber"
           href="/admin/randevular?durum=pending"
         />
-        <KpiCard label="Borçlu Hasta" icon={Wallet} tone="red" pending />
-        <KpiCard label="Aktif Paket" icon={Package} pending />
-        <KpiCard label="Eksik Evrak" icon={FileWarning} tone="amber" pending />
-        <KpiCard label="Yaklaşan Ödeme" icon={Receipt} tone="violet" pending />
       </section>
 
       {/* Hızlı işlemler */}
       <nav aria-label="Hızlı işlemler" className="mt-6 flex flex-wrap gap-2">
-        {QUICK_ACTIONS.map(({ label, icon: Icon, href, primary }) =>
-          href ? (
-            <Link
-              key={label}
-              href={href}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition ${
-                primary
-                  ? "bg-teal-700 text-white hover:bg-teal-800"
-                  : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-teal-800 hover:ring-teal-300"
-              }`}
-            >
-              <Icon className="size-4" aria-hidden="true" /> {label}
-            </Link>
-          ) : (
-            <span
-              key={label}
-              aria-disabled="true"
-              title="Bu özellik ilgili modülle birlikte eklenecek"
-              className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-400 ring-1 ring-slate-200"
-            >
-              <Icon className="size-4" aria-hidden="true" /> {label}
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium">Yakında</span>
-            </span>
-          ),
-        )}
+        {QUICK_ACTIONS.map(({ label, icon: Icon, href, primary }) => (
+          <Link
+            key={label}
+            href={href}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition ${
+              primary
+                ? "bg-teal-700 text-white hover:bg-teal-800"
+                : "bg-white text-slate-700 ring-1 ring-slate-200 hover:text-teal-800 hover:ring-teal-300"
+            }`}
+          >
+            <Icon className="size-4" aria-hidden="true" /> {label}
+          </Link>
+        ))}
       </nav>
 
       {/* Bugünkü randevular + bekleyen talepler */}
@@ -219,7 +192,7 @@ export default async function AdminOverviewPage({
             appointments={todaysActive}
             showActions
             emptyTitle="Bugün için randevu yok"
-            emptyDescription="Randevusuz gelen hastalar için Hızlı Seans özelliği Randevular modülüyle eklenecek."
+            emptyDescription="Bugünün onaylı veya bekleyen randevuları burada listelenir."
           />
         </section>
 
@@ -302,23 +275,6 @@ export default async function AdminOverviewPage({
           ))}
         </dl>
 
-        {/* Kasa özeti: Finans modülüyle aktifleşecek */}
-        <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-slate-700">Kasa Özeti</p>
-            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
-              Finans modülüyle aktif olacak
-            </span>
-          </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {["Toplam Tahsilat", "Toplam Gider", "Net Kasa", "Bekleyen Ödeme"].map((label) => (
-              <div key={label} className="rounded-lg bg-white p-3 ring-1 ring-slate-200">
-                <p className="text-xs font-bold tracking-wide text-slate-400 uppercase">{label}</p>
-                <p className="mt-1 text-xl font-bold text-slate-300">— TL</p>
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
     </>
   );

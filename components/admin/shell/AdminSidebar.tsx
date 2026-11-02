@@ -26,7 +26,7 @@ type NavItem = {
   icon: LucideIcon;
   href?: string;
   exact?: boolean;
-  /** Henüz geliştirilmemiş modül */
+  /** Henüz geliştirilmemiş modül: menüde gösterilmez */
   soon?: boolean;
   children?: NavChild[];
 };
@@ -119,7 +119,7 @@ export default function AdminSidebar({ userName, userInitials, signOut }: AdminS
 
   const nav = (
     <nav aria-label="Yönetim menüsü" className="flex flex-col gap-1">
-      {ADMIN_NAV.map((item) => {
+      {ADMIN_NAV.filter((item) => !item.soon).map((item) => {
         const Icon = item.icon;
         const active = isItemActive(item);
 
@@ -172,11 +172,6 @@ export default function AdminSidebar({ userName, userInitials, signOut }: AdminS
           >
             <Icon className="size-5 shrink-0" aria-hidden="true" />
             <span className="flex-1">{item.label}</span>
-            {item.soon && (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium tracking-wide text-teal-100/80">
-                Yakında
-              </span>
-            )}
           </Link>
         );
       })}

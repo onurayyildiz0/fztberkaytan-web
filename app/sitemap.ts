@@ -4,7 +4,7 @@ import { siteConfig } from "@/lib/site";
 /** /sitemap.xml — arama motorlarına yalnızca herkese açık sayfalar bildirilir */
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = siteConfig.url.replace(/\/$/, "");
-  const lastModified = new Date("2026-10-19");
+  const lastModified = new Date("2026-11-02");
   return [
     { url: `${base}/`, lastModified, changeFrequency: "monthly", priority: 1 },
     { url: `${base}/kvkk`, lastModified, changeFrequency: "yearly", priority: 0.3 },

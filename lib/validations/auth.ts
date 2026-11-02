@@ -36,7 +36,7 @@ export const requiredPhoneField = z
 const emailField = z.string().trim().toLowerCase().email("Geçerli bir e-posta adresi girin.").max(254);
 
 /** Yasal metinlerin (KVKK aydınlatma + kullanım koşulları) sürümü; metin değişince güncellenir */
-export const CONSENT_VERSION = "2026-10-25";
+export const CONSENT_VERSION = "2026-11-02";
 
 export const registerSchema = z.object({
   name: nameField,

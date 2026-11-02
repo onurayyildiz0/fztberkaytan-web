@@ -92,7 +92,8 @@ export async function GET(request: Request) {
       $or: [{ googleEventId: null }, { googleEventId: { $exists: false } }],
     })
       .select("_id")
-      .limit(25)
+      // Her deneme 8 sn'ye kadar sürebilir; Netlify fonksiyon süresi içinde kalmak için az sayıda (kalanlar ertesi gün)
+      .limit(10)
       .lean();
     for (const { _id } of unsynced) {
       await syncAppointmentToGoogle(_id.toString());

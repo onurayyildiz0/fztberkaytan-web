@@ -1,5 +1,5 @@
 import LegalPage, { legalMetadata, type LegalSection } from "@/components/legal/LegalPage";
-import { ContactCard, List, Note, PendingNote, Table, Term } from "@/components/legal/prose";
+import { ContactCard, List, Note, Table, Term } from "@/components/legal/prose";
 import { LEGAL_LAST_UPDATED } from "@/lib/legal";
 
 const PATH = "/kvkk";
@@ -159,12 +159,12 @@ const sections: LegalSection[] = [
             ],
           ]}
         />
-        <PendingNote>
-          Her sağlayıcı için verilerin tutulduğu/erişildiği ülkeler ve fiilen kurulmuş KVKK m.9 aktarım dayanağı (ör. standart
-          sözleşme ve türü, kapsadığı aktarımlar) burada açıklanacaktır. Kurulmamış bir güvence varmış gibi yazılmamalıdır.
-          İncelenecek akışlar: barındırma, MongoDB Atlas, Resend, Google Takvim ve Gmail üzerinden yazışma. (Sitede gömülü
-          harita kullanılmamaktadır.)
-        </PendingNote>
+        <p>
+          Verilerin tutulduğu veya işlendiği ülkeler: barındırma (Netlify) – Amerika Birleşik Devletleri; veritabanı (MongoDB
+          Atlas) – Almanya (Frankfurt); e-posta gönderimi (Resend) – Amerika Birleşik Devletleri; Google Takvim ve Gmail –
+          Google LLC altyapısı (Amerika Birleşik Devletleri ve Google’ın diğer veri merkezleri). Sitede gömülü harita
+          kullanılmamaktadır.
+        </p>
       </>
     ),
   },
